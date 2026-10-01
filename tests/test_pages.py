@@ -19,6 +19,7 @@ CONFIG["github_pages"]["base_url"] = ""
 CONFIG["github_repo"] = "testuser/testrepo"
 
 from build_pages import build_index, build_detail, build_site, render_markdown
+from build_pages import FILTER_JS as FILTER_JS_SRC
 from userscript_manager.discussion_stats import DiscussionStats, LatestReply
 
 
@@ -137,6 +138,29 @@ class TestIndexPanels(unittest.TestCase):
         from build_pages import COMPONENT_CSS
         self.assertIn("[hidden] { display: none !important; }", COMPONENT_CSS)
 
+    def test_pills_have_tooltips(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        self.assertIn('title="本仓库自主编写的脚本"', html)
+        self.assertIn('title="当前版本"', html)
+        self.assertIn('title="脚本已启用，安装链接可用"', html)
+        self.assertIn('title="讨论已被标记为已解决"', html)
+        self.assertIn('title="讨论回复总数"', html)
+
+    def test_sync_and_disabled_have_tooltips(self):
+        html = build_index(
+            {"scripts": [make_script(type="sync", source_type="direct",
+                                     enabled=False)]},
+            {},
+        )
+        self.assertIn('title="从外部来源自动同步的脚本"', html)
+        self.assertIn('title="脚本已禁用，暂不可安装"', html)
+
+    def test_filter_empty_state_present_and_hidden(self):
+        html = build_index({"scripts": [make_script()]}, {})
+        self.assertIn('id="filter-empty" hidden', html)
+        self.assertIn("没有符合筛选条件的脚本", html)
+        self.assertIn("filter-empty", FILTER_JS_SRC)
+
 
 class TestDetailPanels(unittest.TestCase):
     def test_no_discussion_empty_state(self):
@@ -178,6 +202,13 @@ class TestDetailPanels(unittest.TestCase):
     def test_index_brand_links_home(self):
         html = build_index({"scripts": []})
         self.assertIn('class="brand" href="index.html"', html)
+
+    def test_detail_pills_have_tooltips(self):
+        html = build_detail(make_script(), make_stats())
+        self.assertIn('title="本仓库自主编写的脚本"', html)
+        self.assertIn('title="当前版本"', html)
+        self.assertIn('title="脚本已启用，安装链接可用"', html)
+        self.assertIn('title="讨论已被标记为已解决"', html)
 
 
 class TestBuildSiteStats(unittest.TestCase):

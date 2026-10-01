@@ -217,9 +217,15 @@ FILTER_JS = """<script>
 document.querySelectorAll('.chip').forEach(function (btn) {
   btn.addEventListener('click', function () {
     document.querySelectorAll('.chip').forEach(function (b) { b.classList.toggle('active', b === btn); });
-    document.querySelectorAll('.script-card').forEach(function (card) {
-      card.hidden = !(btn.dataset.filter === 'all' || card.dataset.type === btn.dataset.filter);
+    var cards = document.querySelectorAll('.script-card');
+    var visible = 0;
+    cards.forEach(function (card) {
+      var show = btn.dataset.filter === 'all' || card.dataset.type === btn.dataset.filter;
+      card.hidden = !show;
+      if (show) visible += 1;
     });
+    var empty = document.getElementById('filter-empty');
+    if (empty) empty.hidden = !(cards.length > 0 && visible === 0);
   });
 });
 </script>"""
@@ -231,10 +237,21 @@ def discussions_list_url() -> str:
 
 def discussion_badges(stats) -> str:
     if stats.is_answered:
-        return (f'<span class="badge">{ICON_CHECK}已解决</span>'
-                f'<span class="badge plain">{stats.reply_count} 条回复</span>')
-    suffix = " · 待解决" if stats.reply_count else ""
-    return f'<span class="badge plain">{stats.reply_count} 条回复{suffix}</span>'
+        return (
+            f'<span class="badge" title="讨论已被标记为已解决">'
+            f"{ICON_CHECK}已解决</span>"
+            f'<span class="badge plain" title="讨论回复总数">'
+            f"{stats.reply_count} 条回复</span>"
+        )
+    if not stats.reply_count:
+        return (
+            '<span class="badge plain" title="该讨论还没有回复">'
+            "0 条回复</span>"
+        )
+    return (
+        f'<span class="badge plain" title="讨论尚未标记为已解决">'
+        f"{stats.reply_count} 条回复 · 待解决</span>"
+    )
 
 
 def script_discussion_panel(script: dict, stats) -> str:
@@ -281,15 +298,26 @@ def script_card(script: dict, stats) -> str:
     desc = escape_html(script.get("description") or "")
     desc_html = f'<p class="sc-desc">{desc}</p>' if desc else ""
     version = escape_html(script.get("version", ""))
-    version_html = f'<span class="pill ver">v{version}</span>' if version else ""
+    version_html = (
+        f'<span class="pill ver" title="当前版本">v{version}</span>' if version else ""
+    )
     if script_type == "self":
-        type_html = '<span class="pill type-self">自写</span>'
+        type_html = '<span class="pill type-self" title="本仓库自主编写的脚本">自写</span>'
     else:
         source = escape_html(script.get("source_type") or "")
         label = f"同步 · {source}" if source else "同步"
-        type_html = f'<span class="pill type-sync">{label}</span>'
-    status_cls = "" if enabled else " off"
-    status_text = "启用" if enabled else "已禁用"
+        type_html = (
+            f'<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            f"{label}</span>"
+        )
+    if enabled:
+        status_cls = ""
+        status_title = "脚本已启用，安装链接可用"
+        status_text = "启用"
+    else:
+        status_cls = " off"
+        status_title = "脚本已禁用，暂不可安装"
+        status_text = "已禁用"
     install = escape_html(get_install_url(script["id"]))
     disc_href = escape_html(
         (script.get("discussion") or {}).get("url") or discussions_list_url()
@@ -297,7 +325,7 @@ def script_card(script: dict, stats) -> str:
     panel = script_discussion_panel(script, stats)
     return f"""<article class="script-card" data-type="{script_type}">
 <div class="sc-main">
-<div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+<div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}" title="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
 {desc_html}
 <p class="sc-meta">{match_html}{(' · ' + time_label) if time_label else ''}</p>
 </div>
@@ -318,6 +346,12 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
     if not cards:
         cards = ('<p class="empty">暂无脚本，请在命令面板 Issue #1 '
                  "中使用 /add 添加。</p>")
+        filter_empty = ""
+    else:
+        filter_empty = (
+            '<p class="empty" id="filter-empty" hidden>'
+            "没有符合筛选条件的脚本</p>"
+        )
     if degraded:
         replies_html = answered_html = "—"
     else:
@@ -327,9 +361,9 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
 <h1>{BRAND}</h1>
 <p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
 <div class="stats">
-<div class="stat"><b>{len(scripts)}</b><span>脚本总数</span></div>
-<div class="stat"><b>{replies_html}</b><span>讨论回复</span></div>
-<div class="stat"><b>{answered_html}</b><span>已解决反馈</span></div>
+<div class="stat" title="注册表中的脚本总数"><b>{len(scripts)}</b><span>脚本总数</span></div>
+<div class="stat" title="全部脚本讨论的回复总数"><b>{replies_html}</b><span>讨论回复</span></div>
+<div class="stat" title="已被标记为已解决的讨论数"><b>{answered_html}</b><span>已解决反馈</span></div>
 </div>
 </section>
 <main>
@@ -341,6 +375,7 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
 </span>
 </h2>
 {cards}
+{filter_empty}
 </main>"""
     return page(BRAND, body, extra_js=FILTER_JS)
 
@@ -390,15 +425,28 @@ def build_detail(script: dict, stats=None) -> str:
     install_url = escape_html(get_install_url(script["id"]))
 
     if script["type"] == "self":
-        type_html = '<span class="pill type-self">自写</span>'
+        type_html = '<span class="pill type-self" title="本仓库自主编写的脚本">自写</span>'
     else:
         source = escape_html(script.get("source_type") or "")
-        type_html = f'<span class="pill type-sync">同步 · {source}</span>' if source \
-            else '<span class="pill type-sync">同步</span>'
+        type_html = (
+            f'<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            f"同步 · {source}</span>"
+        ) if source else (
+            '<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            "同步</span>"
+        )
     enabled = script.get("enabled", True)
-    status_cls = "" if enabled else " off"
-    status_text = "启用" if enabled else "已禁用"
-    version_html = f'<span class="pill ver">v{version}</span>' if version else ""
+    if enabled:
+        status_cls = ""
+        status_title = "脚本已启用，安装链接可用"
+        status_text = "启用"
+    else:
+        status_cls = " off"
+        status_title = "脚本已禁用，暂不可安装"
+        status_text = "已禁用"
+    version_html = (
+        f'<span class="pill ver" title="当前版本">v{version}</span>' if version else ""
+    )
     when = (script.get("updated_at") or script.get("last_synced_at") or "")[:10]
     when_html = f"<span><i>更新</i>{escape_html(when)}</span>" if when else ""
     desc_html = f'<p class="sc-desc">{description}</p>' if description else ""
@@ -423,7 +471,7 @@ def build_detail(script: dict, stats=None) -> str:
 <a class="back" href="../index.html">← 返回列表</a>
 <div class="d-head">
 <div>
-<div class="d-pills">{type_html}{version_html}<span class="status{status_cls}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+<div class="d-pills">{type_html}{version_html}<span class="status{status_cls}" title="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
 <h3>{name}</h3>
 </div>
 <a class="btn primary" href="{install_url}">安装脚本</a>
