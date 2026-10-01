@@ -7,7 +7,6 @@ on:
 permissions:
   contents: write
   issues: write
-  discussions: write
 
 concurrency:
   group: issue-commands
@@ -54,6 +53,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         if: steps.gate.outputs.authorized == 'true'
@@ -73,18 +73,17 @@ jobs:
         run: |
           python manager.py
 
-      # 单向投影：registry -> Discussions（失败不阻断，警告并入回帖）
-      - name: Project discussions
+      # 单向投影：registry -> Issues（失败不阻断，警告并入回帖）
+      - name: Project issues
         if: steps.gate.outputs.authorized == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          DISCUSSION_CATEGORY: ${{ vars.DISCUSSION_CATEGORY }}
         run: |
-          if PROJ_OUT=$(python project_discussions.py 2>&1); then
+          if PROJ_OUT=$(python project_issues.py 2>&1); then
             echo "$PROJ_OUT"
           else
-            printf '\n⚠️ Discussion 投影失败（真源已保存，下次执行命令时自动重试对账）\n%s\n' "$PROJ_OUT" >> command_result.txt
+            printf '\n⚠️ Issue 投影失败（真源已保存，下次执行命令时自动重试对账）\n%s\n' "$PROJ_OUT" >> command_result.txt
           fi
 
       - name: Commit changes

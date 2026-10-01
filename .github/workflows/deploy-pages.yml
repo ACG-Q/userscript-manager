@@ -3,9 +3,9 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-  discussion:
-    types: [created, edited, deleted, answered, unanswered]
-  discussion_comment:
+  issues:
+    types: [opened, edited, closed, reopened]
+  issue_comment:
     types: [created, edited, deleted]
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  discussions: read
+  issues: read
 
 concurrency:
   group: "pages"
@@ -32,6 +32,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.11'
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
