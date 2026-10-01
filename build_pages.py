@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """从 registry 生成 Pages 站点：index 列表页 + scripts/<id>.html 详情页。"""
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import markdown as md
 
 from userscript_manager.config import CONFIG, get_install_url
-from userscript_manager.discussion_stats import clip, relative_time
+from userscript_manager.discussion_stats import clip, fetch_stats, relative_time
 from userscript_manager.escaping import escape_html
 from userscript_manager.registry import load_registry
 
@@ -437,22 +438,38 @@ def build_detail(script: dict, stats=None) -> str:
     return page(script.get("name", script["id"]), body)
 
 
-def build_site(registry: dict) -> list[Path]:
+def build_site(registry: dict, stats_by_id: dict | None = None) -> list[Path]:
     dist = Path(CONFIG["dist_dir"])
     (dist / "scripts").mkdir(parents=True, exist_ok=True)
     written = []
     index_path = dist / "index.html"
-    index_path.write_text(build_index(registry), encoding="utf-8")
+    index_path.write_text(build_index(registry, stats_by_id), encoding="utf-8")
     written.append(index_path)
     for s in registry["scripts"]:
+        detail_stats = stats_by_id.get(s["id"]) if stats_by_id else None
         detail_path = dist / "scripts" / f"{s['id']}.html"
-        detail_path.write_text(build_detail(s), encoding="utf-8")
+        detail_path.write_text(build_detail(s, detail_stats), encoding="utf-8")
         written.append(detail_path)
     return written
 
 
 def main() -> int:
-    written = build_site(load_registry())
+    registry = load_registry()
+    stats_by_id = None
+    token = os.environ.get("GITHUB_TOKEN", "")
+    if token:
+        from project_discussions import GraphQLClient
+
+        owner, sep, name = os.environ.get("GITHUB_REPOSITORY", "").partition("/")
+        if not sep:
+            owner, _, name = CONFIG["github_repo"].partition("/")
+        stats_by_id = fetch_stats(GraphQLClient(token), owner, name, registry["scripts"])
+    else:
+        print(
+            "警告: 未设置 GITHUB_TOKEN，跳过讨论统计拉取，页面降级渲染",
+            file=sys.stderr,
+        )
+    written = build_site(registry, stats_by_id)
     print(f"已生成 {len(written)} 个页面 -> {CONFIG['dist_dir']}")
     return 0
 

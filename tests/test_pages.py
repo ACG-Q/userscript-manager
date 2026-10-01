@@ -1,4 +1,6 @@
+import contextlib
 import io
+import json
 import os
 import sys
 import tempfile
@@ -150,6 +152,83 @@ class TestDetailPanels(unittest.TestCase):
         self.assertNotIn('<span class="badge">', html)
         self.assertIn("0 条回复", html)
         self.assertIn("还没有回复", html)
+
+
+class TestBuildSiteStats(unittest.TestCase):
+    def _read(self, *parts):
+        return (Path(CONFIG["dist_dir"]).joinpath(*parts)).read_text(encoding="utf-8")
+
+    def test_passes_stats_to_index_and_detail(self):
+        written = build_site({"scripts": [make_script()]}, {"abc123": make_stats()})
+        self.assertIn("8 条回复", self._read("index.html"))
+        self.assertIn('<div class="cmt owner">', self._read("scripts", "abc123.html"))
+        self.assertEqual(len(written), 2)
+
+    def test_none_stats_degrades_all_pages(self):
+        build_site({"scripts": [make_script()]}, None)
+        self.assertIn("<b>—</b>", self._read("index.html"))
+        self.assertIn("摘要暂不可用", self._read("scripts", "abc123.html"))
+
+
+class TestMainWiring(unittest.TestCase):
+    def setUp(self):
+        self._orig_registry = CONFIG["registry_file"]
+        self._orig_dist = CONFIG["dist_dir"]
+        tmp = Path(tempfile.mkdtemp(prefix="usm_main_"))
+        CONFIG["registry_file"] = tmp / "registry.json"
+        CONFIG["dist_dir"] = tmp / "dist"
+
+    def tearDown(self):
+        CONFIG["registry_file"] = self._orig_registry
+        CONFIG["dist_dir"] = self._orig_dist
+
+    def _write_registry(self):
+        Path(CONFIG["registry_file"]).write_text(
+            json.dumps({"scripts": [make_script()]}), encoding="utf-8"
+        )
+
+    def _read_index(self):
+        return (Path(CONFIG["dist_dir"]) / "index.html").read_text(encoding="utf-8")
+
+    def test_main_without_token_degrades_and_warns(self):
+        import build_pages as bp
+        self._write_registry()
+        orig_token = os.environ.pop("GITHUB_TOKEN", None)
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err):
+                rc = bp.main()
+        finally:
+            if orig_token is not None:
+                os.environ["GITHUB_TOKEN"] = orig_token
+        self.assertEqual(rc, 0)
+        self.assertIn("GITHUB_TOKEN", err.getvalue())
+        self.assertIn("<b>—</b>", self._read_index())
+
+    def test_main_with_token_fetches_and_injects(self):
+        import build_pages as bp
+        self._write_registry()
+        orig_token = os.environ.pop("GITHUB_TOKEN", None)
+        os.environ["GITHUB_TOKEN"] = "fake-token"
+        called = {}
+
+        def fake_fetch(client, owner, name, scripts):
+            called.update(owner=owner, name=name)
+            return {"abc123": make_stats()}
+
+        orig_fetch = bp.fetch_stats
+        bp.fetch_stats = fake_fetch
+        try:
+            with contextlib.redirect_stderr(io.StringIO()):
+                rc = bp.main()
+        finally:
+            bp.fetch_stats = orig_fetch
+            os.environ.pop("GITHUB_TOKEN", None)
+            if orig_token is not None:
+                os.environ["GITHUB_TOKEN"] = orig_token
+        self.assertEqual(rc, 0)
+        self.assertEqual(called, {"owner": "testuser", "name": "testrepo"})
+        self.assertIn("8 条回复", self._read_index())
 
 
 class TestThemeTokens(unittest.TestCase):
