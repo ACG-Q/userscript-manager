@@ -23,7 +23,12 @@
       "sync_enabled": false,
       "custom_match": null,
       "documentation": "# 我的去广告脚本\n\n```javascript\n// ==UserScript==\n// @name 我的去广告脚本\n// @version 1.0.0\n// @match *://*/*\n// @grant none\n// ==/UserScript==\n(function() { console.log('Hello'); })();\n```\n\n## 使用说明\n\n这里是测试功能",
-      "doc_path": "self/d1620a7a-ae3b-4817-ae2b-016f48cf81a1/README.md"
+      "doc_path": "self/d1620a7a-ae3b-4817-ae2b-016f48cf81a1/README.md",
+      "discussion": {
+        "number": 2,
+        "node_id": "D_kwDOU2Q-Qc4AprV7",
+        "url": "https://github.com/ACG-Q/userscript-manager/discussions/2"
+      }
     }
   ]
 }
