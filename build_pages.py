@@ -37,6 +37,8 @@ TOKEN_CSS = """
   --warn-bg: #fff8c5;
   --warn-text: #9a6700;
   --neutral-bg: #eaeef2;
+  --tip-bg: #24292f;
+  --tip-fg: #ffffff;
   --radius-card: 12px;
   --radius-btn: 8px;
   --radius-pill: 999px;
@@ -169,6 +171,25 @@ main { padding: 8px 28px 36px; }
 footer.foot { padding: 18px 28px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; color: var(--text-muted); border-top: 1px solid var(--border); }
 footer.foot a { font-weight: 600; }
 
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 8px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--tip-bg); color: var(--tip-fg);
+  padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  white-space: nowrap; pointer-events: none; z-index: 20;
+  opacity: 0; transition: opacity .12s ease;
+}
+[data-tip]::before {
+  content: ""; position: absolute; bottom: calc(100% + 4px); left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 8px; height: 8px; background: var(--tip-bg);
+  opacity: 0; transition: opacity .12s ease; pointer-events: none; z-index: 20;
+}
+[data-tip]:hover::after, [data-tip]:hover::before,
+[data-tip]:focus-within::after, [data-tip]:focus-within::before { opacity: 1; }
+
 @media (max-width: 760px) {
   body { padding: 16px 8px; }
   .script-card { grid-template-columns: 1fr; }
@@ -275,18 +296,18 @@ def discussions_list_url() -> str:
 def discussion_badges(stats) -> str:
     if stats.is_answered:
         return (
-            f'<span class="badge" title="讨论已被标记为已解决">'
+            f'<span class="badge" data-tip="讨论已被标记为已解决">'
             f"{ICON_CHECK}已解决</span>"
-            f'<span class="badge plain" title="讨论回复总数">'
+            f'<span class="badge plain" data-tip="讨论回复总数">'
             f"{stats.reply_count} 条回复</span>"
         )
     if not stats.reply_count:
         return (
-            '<span class="badge plain" title="该讨论还没有回复">'
+            '<span class="badge plain" data-tip="该讨论还没有回复">'
             "0 条回复</span>"
         )
     return (
-        f'<span class="badge plain" title="讨论尚未标记为已解决">'
+        f'<span class="badge plain" data-tip="讨论尚未标记为已解决">'
         f"{stats.reply_count} 条回复 · 待解决</span>"
     )
 
@@ -337,15 +358,15 @@ def script_card(script: dict, stats) -> str:
     desc_html = f'<p class="sc-desc">{desc}</p>' if desc else ""
     version = escape_html(script.get("version", ""))
     version_html = (
-        f'<span class="pill ver" title="当前版本">v{version}</span>' if version else ""
+        f'<span class="pill ver" data-tip="当前版本">v{version}</span>' if version else ""
     )
     if script_type == "self":
-        type_html = '<span class="pill type-self" title="本仓库自主编写的脚本">自写</span>'
+        type_html = '<span class="pill type-self" data-tip="本仓库自主编写的脚本">自写</span>'
     else:
         source = escape_html(script.get("source_type") or "")
         label = f"同步 · {source}" if source else "同步"
         type_html = (
-            f'<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            f'<span class="pill type-sync" data-tip="从外部来源自动同步的脚本">'
             f"{label}</span>"
         )
     if enabled:
@@ -363,7 +384,7 @@ def script_card(script: dict, stats) -> str:
     panel = script_discussion_panel(script, stats)
     return f"""<article class="script-card" data-type="{script_type}">
 <div class="sc-main">
-<div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}" title="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+<div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}" data-tip="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
 {desc_html}
 <p class="sc-meta">{match_html}{(' · ' + time_label) if time_label else ''}</p>
 </div>
@@ -397,9 +418,9 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
 <h1>{BRAND}</h1>
 <p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
 <div class="stats">
-<div class="stat" title="注册表中的脚本总数"><b>{len(scripts)}</b><span>脚本总数</span></div>
-<div class="stat" title="全部脚本讨论的回复总数"><b>{replies_html}</b><span>讨论回复</span></div>
-<div class="stat" title="已被标记为已解决的讨论数"><b>{answered_html}</b><span>已解决反馈</span></div>
+<div class="stat" data-tip="注册表中的脚本总数"><b>{len(scripts)}</b><span>脚本总数</span></div>
+<div class="stat" data-tip="全部脚本讨论的回复总数"><b>{replies_html}</b><span>讨论回复</span></div>
+<div class="stat" data-tip="已被标记为已解决的讨论数"><b>{answered_html}</b><span>已解决反馈</span></div>
 </div>
 </section>
 <main>
@@ -460,14 +481,14 @@ def build_detail(script: dict, stats=None) -> str:
     install_url = escape_html(get_install_url(script["id"]))
 
     if script["type"] == "self":
-        type_html = '<span class="pill type-self" title="本仓库自主编写的脚本">自写</span>'
+        type_html = '<span class="pill type-self" data-tip="本仓库自主编写的脚本">自写</span>'
     else:
         source = escape_html(script.get("source_type") or "")
         type_html = (
-            f'<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            f'<span class="pill type-sync" data-tip="从外部来源自动同步的脚本">'
             f"同步 · {source}</span>"
         ) if source else (
-            '<span class="pill type-sync" title="从外部来源自动同步的脚本">'
+            '<span class="pill type-sync" data-tip="从外部来源自动同步的脚本">'
             "同步</span>"
         )
     enabled = script.get("enabled", True)
@@ -480,7 +501,7 @@ def build_detail(script: dict, stats=None) -> str:
         status_title = "脚本已禁用，暂不可安装"
         status_text = "已禁用"
     version_html = (
-        f'<span class="pill ver" title="当前版本">v{version}</span>' if version else ""
+        f'<span class="pill ver" data-tip="当前版本">v{version}</span>' if version else ""
     )
     when = (script.get("updated_at") or script.get("last_synced_at") or "")[:10]
     when_html = f"<span><i>更新</i>{escape_html(when)}</span>" if when else ""
@@ -506,7 +527,7 @@ def build_detail(script: dict, stats=None) -> str:
 <a class="back" href="../index.html">← 返回列表</a>
 <div class="d-head">
 <div>
-<div class="d-pills">{type_html}{version_html}<span class="status{status_cls}" title="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+<div class="d-pills">{type_html}{version_html}<span class="status{status_cls}" data-tip="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
 <h3>{name}</h3>
 </div>
 <a class="btn primary" href="{install_url}">安装脚本</a>

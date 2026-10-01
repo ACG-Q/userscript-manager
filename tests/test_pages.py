@@ -141,11 +141,11 @@ class TestIndexPanels(unittest.TestCase):
 
     def test_pills_have_tooltips(self):
         html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
-        self.assertIn('title="本仓库自主编写的脚本"', html)
-        self.assertIn('title="当前版本"', html)
-        self.assertIn('title="脚本已启用，安装链接可用"', html)
-        self.assertIn('title="讨论已被标记为已解决"', html)
-        self.assertIn('title="讨论回复总数"', html)
+        self.assertIn('data-tip="本仓库自主编写的脚本"', html)
+        self.assertIn('data-tip="当前版本"', html)
+        self.assertIn('data-tip="脚本已启用，安装链接可用"', html)
+        self.assertIn('data-tip="讨论已被标记为已解决"', html)
+        self.assertIn('data-tip="讨论回复总数"', html)
 
     def test_sync_and_disabled_have_tooltips(self):
         html = build_index(
@@ -153,8 +153,8 @@ class TestIndexPanels(unittest.TestCase):
                                      enabled=False)]},
             {},
         )
-        self.assertIn('title="从外部来源自动同步的脚本"', html)
-        self.assertIn('title="脚本已禁用，暂不可安装"', html)
+        self.assertIn('data-tip="从外部来源自动同步的脚本"', html)
+        self.assertIn('data-tip="脚本已禁用，暂不可安装"', html)
 
     def test_filter_empty_state_present_and_hidden(self):
         html = build_index({"scripts": [make_script()]}, {})
@@ -208,10 +208,10 @@ class TestDetailPanels(unittest.TestCase):
 
     def test_detail_pills_have_tooltips(self):
         html = build_detail(make_script(), make_stats())
-        self.assertIn('title="本仓库自主编写的脚本"', html)
-        self.assertIn('title="当前版本"', html)
-        self.assertIn('title="脚本已启用，安装链接可用"', html)
-        self.assertIn('title="讨论已被标记为已解决"', html)
+        self.assertIn('data-tip="本仓库自主编写的脚本"', html)
+        self.assertIn('data-tip="当前版本"', html)
+        self.assertIn('data-tip="脚本已启用，安装链接可用"', html)
+        self.assertIn('data-tip="讨论已被标记为已解决"', html)
 
     def test_empty_changelog_uses_empty_state(self):
         html = build_detail(make_script(changelog=[]))
@@ -245,6 +245,11 @@ class TestDetailPanels(unittest.TestCase):
     def test_empty_state_css_defined(self):
         self.assertIn(".empty-state {", COMPONENT_CSS)
         self.assertIn(".empty-state.sm", COMPONENT_CSS)
+
+    def test_tooltip_css_and_tokens_defined(self):
+        self.assertIn("content: attr(data-tip)", COMPONENT_CSS)
+        self.assertIn("--tip-bg", TOKEN_CSS)
+        self.assertIn("--tip-fg", TOKEN_CSS)
 
 
 class TestBuildSiteStats(unittest.TestCase):
