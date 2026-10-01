@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import markdown as md
 
 from userscript_manager.config import CONFIG, get_install_url
+from userscript_manager.discussion_stats import clip, relative_time
 from userscript_manager.escaping import escape_html
 from userscript_manager.registry import load_registry
 
@@ -204,35 +205,139 @@ def page(title: str, body_html: str, extra_js: str = "") -> str:
 </html>"""
 
 
-def build_index(registry: dict) -> str:
-    rows = []
-    for s in registry["scripts"]:
-        name = escape_html(s.get("name", s["id"]))
-        version = escape_html(s.get("version", ""))
-        status = "启用" if s.get("enabled", True) else "已禁用"
-        script_type = "自写" if s["type"] == "self" else "同步"
-        links = [f'<a href="scripts/{escape_html(s["id"])}.html">详情</a>']
-        links.append(f'<a href="{escape_html(get_install_url(s["id"]))}">安装</a>')
-        discussion_url = (s.get("discussion") or {}).get("url")
-        if discussion_url:
-            links.append(f'<a href="{escape_html(discussion_url)}">讨论</a>')
-        rows.append(
-            f"<tr><td>{name}</td><td>{script_type}</td><td>{version}</td>"
-            f"<td>{status}</td><td>{' · '.join(links)}</td></tr>"
+ICON_COMMENT = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+ICON_CHECK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>'
+
+FILTER_JS = """<script>
+document.querySelectorAll('.chip').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.chip').forEach(function (b) { b.classList.toggle('active', b === btn); });
+    document.querySelectorAll('.script-card').forEach(function (card) {
+      card.hidden = !(btn.dataset.filter === 'all' || card.dataset.type === btn.dataset.filter);
+    });
+  });
+});
+</script>"""
+
+
+def discussions_list_url() -> str:
+    return f"https://github.com/{CONFIG['github_repo']}/discussions"
+
+
+def discussion_badges(stats) -> str:
+    if stats.is_answered:
+        return (f'<span class="badge">{ICON_CHECK}已解决</span>'
+                f'<span class="badge plain">{stats.reply_count} 条回复</span>')
+    suffix = " · 待解决" if stats.reply_count else ""
+    return f'<span class="badge plain">{stats.reply_count} 条回复{suffix}</span>'
+
+
+def script_discussion_panel(script: dict, stats) -> str:
+    url = (script.get("discussion") or {}).get("url")
+    if not url:
+        return (
+            f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
+            f'<p class="disc-empty"><span>还没有讨论</span>'
+            f'<a href="{escape_html(discussions_list_url())}">发起讨论 →</a></p></div>'
         )
-    rows_html = "\n".join(rows) if rows else (
-        '<tr><td colspan="5" style="text-align:center;color:#888;">'
-        "暂无脚本，请在命令面板 Issue #1 中使用 /add 添加。</td></tr>"
+    if stats is None:
+        return (
+            f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
+            f'<p class="disc-empty"><span>摘要暂不可用</span>'
+            f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></p></div>'
+        )
+    head = f'<div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
+    if stats.replies:
+        latest = stats.replies[-1]
+        who = "仓库所有者" if latest.is_owner else latest.author
+        quote = (
+            f'<p class="disc-latest">“{escape_html(clip(latest.body, 80))}”'
+            f'<span class="disc-who">{escape_html(who)} · '
+            f'{escape_html(relative_time(latest.created_at))}</span></p>'
+        )
+    else:
+        quote = ""
+    return f"{head}</div>{quote}</div>"
+
+
+def script_card(script: dict, stats) -> str:
+    sid = escape_html(script["id"])
+    name = escape_html(script.get("name", script["id"]))
+    script_type = script["type"]
+    enabled = script.get("enabled", True)
+    match = script.get("match") or []
+    match_html = f"<code>{escape_html(match[0])}</code>" if match else "<code>—</code>"
+    if script_type == "sync":
+        when = (script.get("last_synced_at") or script.get("updated_at") or "")[:10]
+        time_label = f"同步于 {when}" if when else "同步"
+    else:
+        when = (script.get("updated_at") or "")[:10]
+        time_label = f"更新于 {when}" if when else ""
+    desc = escape_html(script.get("description") or "")
+    desc_html = f'<p class="sc-desc">{desc}</p>' if desc else ""
+    version = escape_html(script.get("version", ""))
+    version_html = f'<span class="pill ver">v{version}</span>' if version else ""
+    if script_type == "self":
+        type_html = '<span class="pill type-self">自写</span>'
+    else:
+        source = escape_html(script.get("source_type") or "")
+        label = f"同步 · {source}" if source else "同步"
+        type_html = f'<span class="pill type-sync">{label}</span>'
+    status_cls = "" if enabled else " off"
+    status_text = "启用" if enabled else "已禁用"
+    install = escape_html(get_install_url(script["id"]))
+    disc_href = escape_html(
+        (script.get("discussion") or {}).get("url") or discussions_list_url()
     )
-    body = f"""<h1>油猴脚本管理器</h1>
-<p>此页面由 GitHub Actions 构建，安装链接指向本站部署的脚本文件。</p>
-<table>
-<thead><tr><th>名称</th><th>类型</th><th>版本</th><th>状态</th><th>操作</th></tr></thead>
-<tbody>
-{rows_html}
-</tbody>
-</table>"""
-    return page("油猴脚本管理器", body)
+    panel = script_discussion_panel(script, stats)
+    return f"""<article class="script-card" data-type="{script_type}">
+<div class="sc-main">
+<div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+{desc_html}
+<p class="sc-meta">{match_html}{(' · ' + time_label) if time_label else ''}</p>
+</div>
+{panel}
+<div class="sc-actions">
+<a class="btn primary" href="{install}">安装</a>
+<a class="btn ghost" href="scripts/{sid}.html">详情</a>
+<a class="btn ghost" href="{disc_href}">讨论</a>
+</div>
+</article>"""
+
+
+def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
+    degraded = stats_by_id is None
+    stats_map = stats_by_id or {}
+    scripts = registry["scripts"]
+    cards = "\n".join(script_card(s, stats_map.get(s["id"])) for s in scripts)
+    if not cards:
+        cards = ('<p class="empty">暂无脚本，请在命令面板 Issue #1 '
+                 "中使用 /add 添加。</p>")
+    if degraded:
+        replies_html = answered_html = "—"
+    else:
+        replies_html = str(sum(st.reply_count for st in stats_map.values()))
+        answered_html = str(sum(1 for st in stats_map.values() if st.is_answered))
+    body = f"""<section class="hero">
+<h1>{BRAND}</h1>
+<p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
+<div class="stats">
+<div class="stat"><b>{len(scripts)}</b><span>脚本总数</span></div>
+<div class="stat"><b>{replies_html}</b><span>讨论回复</span></div>
+<div class="stat"><b>{answered_html}</b><span>已解决反馈</span></div>
+</div>
+</section>
+<main>
+<h2 class="sec">脚本列表
+<span class="filters">
+<button class="chip active" type="button" data-filter="all">全部</button>
+<button class="chip" type="button" data-filter="self">自写</button>
+<button class="chip" type="button" data-filter="sync">同步</button>
+</span>
+</h2>
+{cards}
+</main>"""
+    return page(BRAND, body, extra_js=FILTER_JS)
 
 
 def build_detail(script: dict) -> str:

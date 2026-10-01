@@ -17,6 +17,7 @@ CONFIG["github_pages"]["base_url"] = ""
 CONFIG["github_repo"] = "testuser/testrepo"
 
 from build_pages import build_index, build_detail, build_site, render_markdown
+from userscript_manager.discussion_stats import DiscussionStats, LatestReply
 
 
 def make_script(**overrides):
@@ -30,6 +31,18 @@ def make_script(**overrides):
     }
     script.update(overrides)
     return script
+
+
+def make_stats(answered=True, count=8, replies=None):
+    if replies is None:
+        replies = (LatestReply(
+            author="ACG-Q", body="已修复，更新到 v1.0.1 即可。",
+            created_at="2026-10-01T06:00:00Z", is_owner=True,
+        ),)
+    return DiscussionStats(
+        number=4, url="https://github.com/t/r/discussions/4",
+        is_answered=answered, reply_count=count, replies=replies,
+    )
 
 
 class TestPages(unittest.TestCase):
@@ -61,6 +74,50 @@ class TestPages(unittest.TestCase):
 
     def test_render_markdown_basic(self):
         self.assertIn("<h1>t</h1>", render_markdown("# t"))
+
+
+class TestIndexPanels(unittest.TestCase):
+    def test_card_with_stats_shows_badges_and_quote(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        self.assertIn("已解决", html)
+        self.assertIn("8 条回复", html)
+        self.assertIn("v1.0.1", html)
+        self.assertIn("仓库所有者", html)
+
+    def test_card_unanswered_badge_without_quote(self):
+        html = build_index(
+            {"scripts": [make_script()]},
+            {"abc123": make_stats(answered=False, count=3, replies=())},
+        )
+        self.assertIn("3 条回复 · 待解决", html)
+        self.assertNotIn('<span class="badge">', html)
+        self.assertNotIn('<p class="disc-latest">', html)
+
+    def test_card_without_discussion_shows_empty_state(self):
+        html = build_index({"scripts": [make_script(discussion=None)]}, {})
+        self.assertIn("还没有讨论", html)
+        self.assertIn("/discussions", html)
+
+    def test_card_degraded_keeps_github_link(self):
+        html = build_index({"scripts": [make_script()]}, None)
+        self.assertIn("摘要暂不可用", html)
+        self.assertIn("https://github.com/t/r/discussions/4", html)
+
+    def test_hero_stats_sum_and_dash(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats(count=8)})
+        self.assertIn("<b>8</b>", html)
+        html_none = build_index({"scripts": [make_script()]}, None)
+        self.assertIn("<b>—</b>", html_none)
+
+    def test_filter_chips_and_data_type(self):
+        html = build_index({"scripts": [make_script(type="sync")]}, {})
+        self.assertIn('data-type="sync"', html)
+        self.assertIn('data-filter="all"', html)
+        self.assertIn(".chip", html)
+
+    def test_empty_registry_message(self):
+        html = build_index({"scripts": []}, {})
+        self.assertIn("暂无脚本", html)
 
 
 class TestThemeTokens(unittest.TestCase):
