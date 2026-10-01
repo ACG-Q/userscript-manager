@@ -330,7 +330,6 @@ command_result.txt                               # 回帖内容（gitignore，�
 | `ISSUE_NUMBER` | 工作流注入 | 命令面板校验 |
 | `GITHUB_REPOSITORY` | GitHub 自动注入 | 推导仓库地址 |
 | `GITHUB_PAGES_URL` | 仓库变量（可选） | 覆盖 Pages 基础地址（自定义域名） |
-| `DISCUSSION_CATEGORY` | 仓库变量（可选） | Discussion 分类名，默认 `General` |
 | `AUTHOR_NAME` / `AUTHOR_NAMESPACE` | 仓库变量（可选） | 脚本默认作者信息 |
 
 本地开发不受影响：所有配置都有默认值，`python manager.py` 可直接在本地带环境变量运行调试。
@@ -353,12 +352,12 @@ command_result.txt                               # 回帖内容（gitignore，�
 | 门面 | 承载设施 | 投影方式 |
 |------|---------|---------|
 | B. 仓库 + 控制台 | Issue #1 + README | issue_comment 触发，权限门禁，回帖 |
-| C. 脚本独立页 | Discussions | `project_discussions.py` 经 GraphQL 幂等对账：创建 / 更新 / 回填 / 墓碑化 |
+| C. 脚本独立页 | Issues | `project_issues.py` 经 GraphQL 幂等对账：创建 / 更新 / 回填 / 墓碑化 |
 | A. 列表站 | GitHub Pages | `build_pages.py` 部署时生成，HTML 不入库 |
 
 核心约定：
 
-- **状态必须入库**：`registry.json` 新增 `discussion` 追踪字段（number/node_id/url）与 `changelog` 更新历史
-- **机器人只碰 Discussion 正文**（首行 `<!-- script-id -->` 标记用于孤儿对账），评论区永远留给人
+- **状态必须入库**：`registry.json` 的 `issue` 追踪字段（number/node_id/url）与 `changelog` 更新历史
+- **机器人只碰 Issue 正文**（首行 `<!-- script-id -->` 标记用于孤儿对账），评论区永远留给人
 - **`/rm` 墓碑化**：标题加「[已删除]」前缀、正文替换、移除标记，保留人类讨论
 - **投影失败不阻断命令**：警告写入回帖，下次执行时自动重试对账

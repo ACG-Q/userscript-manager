@@ -9,7 +9,7 @@
 - **Markdown 文档**：自写脚本支持 Markdown 文档，代码块自动提取为脚本代码，其余内容保存为 README.md
 - **第三方同步**：支持 GreasyFork、Userscript.zone、GitHub Gist、直接链接，可插拔适配器架构
 - **GitHub Pages 分发**：安装链接走 Pages/CDN，国内可访问，支持自动更新检测
-- **每脚本独立页**：每个脚本自动拥有 Discussions 页面（元数据 + 文档 + 更新历史），评论区供用户反馈；Pages 列表站提供安装入口
+- **每脚本独立页**：每个脚本自动拥有独立 Issue 页面（元数据 + 文档 + 更新历史），评论区供用户反馈；Pages 列表站提供安装入口
 - **定时同步**：可选的 GitHub Actions 定时任务，自动检查第三方脚本更新
 - **单仓库管理**：所有脚本统一在一个仓库，`dist/` 目录直接部署到 Pages
 - **权限控制**：仅 Issue #1 作为命令面板，仅仓库拥有者可执行命令，其他人评论自动删除
@@ -24,15 +24,11 @@ Fork 或新建一个仓库，将本项目代码推送上去。
 
 仓库 Settings → Pages → Source 选择 "GitHub Actions"。
 
-### 3. 启用 Discussions（脚本独立页）
-
-仓库 Settings → Features → 勾选 **Discussions**（API 无法代办，仅此一次）。分类保持默认 `General`，或用仓库变量 `DISCUSSION_CATEGORY` 指定。
-
-### 4. 初始化命令面板
+### 3. 初始化命令面板
 
 推送代码后，在 Actions 选项卡中手动运行 **"Init Command Panel"** 工作流（或等待 push 触发），它会自动创建 Issue #1 作为命令面板。重复运行是安全的——已存在时会跳过创建。
 
-### 5. 配置作者信息（可选）
+### 4. 配置作者信息（可选）
 
 修改 `userscript_manager/config.py` 中的作者信息：
 
@@ -48,7 +44,7 @@ Fork 或新建一个仓库，将本项目代码推送上去。
 - `AUTHOR_NAME`
 - `AUTHOR_NAMESPACE`
 
-### 6. 开始使用
+### 5. 开始使用
 
 在 Issue #1（命令面板）下评论命令即可：
 
@@ -203,7 +199,6 @@ on:
 | `AUTHOR_NAME` | 脚本作者名 | "Your Name" |
 | `AUTHOR_NAMESPACE` | 命名空间 | "https://your-namespace.com" |
 | `GITHUB_PAGES_URL` | Pages 基础 URL | 自动推导 |
-| `DISCUSSION_CATEGORY` | Discussion 分类名 | `General` |
 
 ## 目录结构
 
@@ -211,7 +206,7 @@ on:
 .
 ├── .github/workflows/
 │   ├── init-command-panel.yml  # 初始化命令面板
-│   ├── issue-commands.yml      # 命令处理与 Discussion 投影
+│   ├── issue-commands.yml      # 命令处理与 Issue 投影
 │   ├── deploy-pages.yml        # 构建站点并部署 Pages
 │   └── test.yml                # 单元测试 CI
 ├── userscript_manager/
@@ -219,7 +214,7 @@ on:
 │   ├── registry.py             # 注册表读写（原子写入）
 │   ├── utils.py                # 工具函数（头部构建 / 版本 / 安装地址）
 │   ├── issue_parser.py         # 评论解析（Markdown 支持）
-│   ├── discussion_page.py      # Discussion 正文生成
+│   ├── issue_page.py           # Issue 正文生成
 │   ├── escaping.py             # HTML / Markdown 转义
 │   ├── sources/                # 源适配器（base / greasyfork / userscript_zone / github_gist / direct_url）
 │   └── commands/               # 命令模块（list / add / remove / update / sync / info / toggle / export）
@@ -233,7 +228,7 @@ on:
 │   └── synced/                 # 同步脚本源码
 ├── dist/                       # .user.js 安装包（HTML 页面部署时生成，不入库）
 ├── manager.py                  # 命令入口
-├── project_discussions.py      # Discussions 投影器（幂等对账）
+├── project_issues.py           # Issues 投影器（幂等对账）
 ├── build_pages.py              # Pages 站点生成器
 ├── registry.json               # 脚本注册表（真源）
 └── requirements.txt

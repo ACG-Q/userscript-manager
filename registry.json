@@ -24,11 +24,6 @@
       "custom_match": null,
       "documentation": "# 我的去广告脚本\n\n移除百度首页和搜索结果广告，支持信息流与推广链接过滤。\n\n## 功能\n- 首页右侧广告位\n- 搜索结果推广链接\n- 信息流广告卡片\n\n```javascript\n// ==UserScript==\n// @name         我的去广告脚本\n// @namespace    https://github.com/ACG-Q/userscript-manager\n// @version      1.0.1\n// @description  移除百度首页和搜索结果广告，支持信息流与推广链接过滤\n// @author       ACG-Q\n// @match        *://www.baidu.com/*\n// @grant        none\n// ==/UserScript==\n(function () {\n  'use strict';\n  const kill = () => document.querySelectorAll('#content_right, .ec_tuiguang_pannel').forEach(el => el.remove());\n  kill();\n\n  kill();\n  new MutationObserver(kill).observe(document.body, { childList: true, subtree: true });\n})();\n```",
       "doc_path": "self/d1620a7a-ae3b-4817-ae2b-016f48cf81a1/README.md",
-      "discussion": {
-        "number": 2,
-        "node_id": "D_kwDOU2Q-Qc4AprV7",
-        "url": "https://github.com/ACG-Q/userscript-manager/discussions/2"
-      },
       "changelog": [
         {
           "version": "1.0.1",
