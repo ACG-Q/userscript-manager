@@ -18,7 +18,8 @@ CONFIG["dist_dir"] = _tmp / "dist"
 CONFIG["github_pages"]["base_url"] = ""
 CONFIG["github_repo"] = "testuser/testrepo"
 
-from build_pages import build_index, build_detail, build_site, render_markdown
+from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
+from build_pages import COMPONENT_CSS, TOKEN_CSS
 from build_pages import FILTER_JS as FILTER_JS_SRC
 from userscript_manager.discussion_stats import DiscussionStats, LatestReply
 
@@ -209,6 +210,28 @@ class TestDetailPanels(unittest.TestCase):
         self.assertIn('title="当前版本"', html)
         self.assertIn('title="脚本已启用，安装链接可用"', html)
         self.assertIn('title="讨论已被标记为已解决"', html)
+
+    def test_empty_changelog_uses_empty_class(self):
+        html = build_detail(make_script(changelog=[]))
+        self.assertIn('<p class="empty">暂无更新记录。</p>', html)
+
+    def test_empty_state_renders_svg_text_and_variants(self):
+        html = empty_state("没有数据")
+        self.assertIn('class="empty-state"', html)
+        self.assertIn("<svg", html)
+        self.assertIn("没有数据", html)
+        self.assertIn('role="status"', html)
+        self.assertIn('class="empty-state sm"', empty_state("x", small=True))
+
+    def test_empty_state_injects_link_and_filter_attrs(self):
+        html = empty_state("x", link_html='<a href="https://e">发起讨论 →</a>')
+        self.assertIn('<a href="https://e">发起讨论 →</a>', html)
+        f = empty_state("x", elem_id="filter-empty", hidden=True)
+        self.assertIn('id="filter-empty" hidden', f)
+
+    def test_empty_state_css_defined(self):
+        self.assertIn(".empty-state {", COMPONENT_CSS)
+        self.assertIn(".empty-state.sm", COMPONENT_CSS)
 
 
 class TestBuildSiteStats(unittest.TestCase):

@@ -123,7 +123,18 @@ main { padding: 8px 28px 36px; }
 .disc-empty a { font-weight: 600; font-size: 13px; }
 
 .sc-actions { display: flex; flex-direction: column; gap: 8px; }
-.empty { text-align: center; color: var(--text-muted); padding: 32px 0; }
+.empty-state { text-align: center; color: var(--text-muted); padding: 36px 16px; }
+.empty-state svg { display: block; margin: 0 auto 12px; }
+.empty-state p { margin: 0; font-size: 14.5px; line-height: 1.6; }
+.empty-state p a { font-weight: 600; font-size: 13.5px; }
+.empty-state .es-doc { fill: var(--bg); stroke: var(--border-strong); stroke-width: 2; }
+.empty-state .es-line { fill: var(--border); }
+.empty-state .es-tray, .empty-state .es-lip { fill: var(--border); }
+.empty-state .es-bub rect, .empty-state .es-bub path { fill: var(--border-strong); }
+.empty-state .es-bub circle { fill: var(--bg); }
+.empty-state.sm { padding: 14px 8px; }
+.empty-state.sm svg { width: 56px; height: auto; margin-bottom: 8px; }
+.empty-state.sm p { font-size: 13px; }
 
 .detail-card { border-radius: 14px; padding: 24px; background: var(--bg); border: 1px solid var(--border); }
 .d-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
@@ -229,6 +240,34 @@ document.querySelectorAll('.chip').forEach(function (btn) {
   });
 });
 </script>"""
+
+
+EMPTY_SVG = (
+    '<svg width="104" height="88" viewBox="0 0 104 88" aria-hidden="true">'
+    '<rect class="es-doc" x="30" y="6" width="38" height="46" rx="4"/>'
+    '<rect class="es-line" x="37" y="16" width="24" height="4" rx="2"/>'
+    '<rect class="es-line" x="37" y="25" width="24" height="4" rx="2"/>'
+    '<rect class="es-line" x="37" y="34" width="15" height="4" rx="2"/>'
+    '<path class="es-tray" d="M16 50 h72 a6 6 0 0 1 6 6 v10 H10 v-10 '
+    'a6 6 0 0 1 6 -6 z"/>'
+    '<rect class="es-lip" x="6" y="66" width="92" height="10" rx="5"/>'
+    '<g class="es-bub"><rect x="76" y="2" width="26" height="18" rx="6"/>'
+    '<path d="M82 18 l1 8 l7 -6 z"/>'
+    '<circle cx="83" cy="11" r="1.8"/><circle cx="89" cy="11" r="1.8"/>'
+    '<circle cx="95" cy="11" r="1.8"/></g>'
+    "</svg>"
+)
+
+
+def empty_state(text: str, small: bool = False, link_html: str = "",
+                elem_id: str = "", hidden: bool = False) -> str:
+    cls = "empty-state sm" if small else "empty-state"
+    attrs = f' id="{elem_id}"' if elem_id else ""
+    if hidden:
+        attrs += " hidden"
+    link = f"<p>{link_html}</p>" if link_html else ""
+    return (f'<div class="{cls}"{attrs} role="status">{EMPTY_SVG}'
+            f"<p>{text}</p>{link}</div>")
 
 
 def discussions_list_url() -> str:
