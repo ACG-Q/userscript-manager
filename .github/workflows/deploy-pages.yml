@@ -34,13 +34,20 @@ jobs:
       - name: Build site
         run: python build_pages.py
 
+      - name: Stage site structure
+        run: |
+          mkdir _site
+          mv dist/* _site/
+          mkdir _site/dist
+          find _site -maxdepth 1 -name '*.user.js' -exec mv -t _site/dist {} +
+
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./dist
+          path: ./_site
 
   deploy:
     environment:
