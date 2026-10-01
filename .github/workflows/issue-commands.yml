@@ -1,0 +1,112 @@
+name: Issue Commands Manager
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+  discussions: write
+
+concurrency:
+  group: issue-commands
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-latest
+    # 仅 Issue #1 (命令面板) 触发执行
+    if: ${{ !github.event.issue.pull_request && github.event.issue.number == 1 }}
+    steps:
+      # 权限门禁：比较评论者是否仓库拥有者
+      - name: Permission gate
+        id: gate
+        env:
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
+        run: |
+          if [ "$COMMENT_USER" == "$REPO_OWNER" ]; then
+            echo "authorized=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "authorized=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 非拥有者的命令评论 -> 自动删除
+      - name: Delete unauthorized comment
+        if: steps.gate.outputs.authorized == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api -X DELETE repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}
+          echo "已删除未授权用户的命令评论"
+
+      # 以下步骤仅授权用户执行
+      - name: Checkout
+        if: steps.gate.outputs.authorized == 'true'
+        uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Python
+        if: steps.gate.outputs.authorized == 'true'
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        if: steps.gate.outputs.authorized == 'true'
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run manager
+        if: steps.gate.outputs.authorized == 'true'
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_USER: ${{ github.event.comment.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          GITHUB_PAGES_URL: ${{ vars.GITHUB_PAGES_URL }}
+        run: |
+          python manager.py
+
+      # 单向投影：registry -> Discussions（失败不阻断，警告并入回帖）
+      - name: Project discussions
+        if: steps.gate.outputs.authorized == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          DISCUSSION_CATEGORY: ${{ vars.DISCUSSION_CATEGORY }}
+        run: |
+          if ! python project_discussions.py; then
+            echo "⚠️ Discussion 投影失败（真源已保存，下次执行命令时自动重试对账）" >> command_result.txt
+          fi
+
+      - name: Commit changes
+        if: steps.gate.outputs.authorized == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Apply command: ${{ github.event.comment.user.login }}"
+            git push
+          fi
+
+      - name: Reply to comment
+        if: steps.gate.outputs.authorized == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          if [ -f command_result.txt ]; then
+            RESULT=$(cat command_result.txt)
+          else
+            RESULT="操作完成"
+          fi
+          gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "**执行结果：**"$'\n'"$RESULT"

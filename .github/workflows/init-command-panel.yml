@@ -1,0 +1,97 @@
+name: Init Command Panel
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+concurrency:
+  group: init-command-panel
+  cancel-in-progress: false
+
+jobs:
+  init:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check if Issue #1 exists
+        id: check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          # 用 --jq 取原始值，避免依赖 JSON 紧凑/缩进格式（此前 grep 带空格模式在
+          # 非 TTY 紧凑输出下永远匹配失败，导致每次 push 都重复建面板 Issue）
+          NUM=$(gh api "repos/$REPO/issues/1" --jq '.number' 2>/dev/null || true)
+          if [ "$NUM" = "1" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Issue #1 已存在，跳过创建"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create command panel issue (Issue #1)
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat > /tmp/issue_body.md << 'EOF'
+          ## 油猴脚本管理命令面板
+
+          这是你的专属命令面板，**仅 Issue #1 生效**。
+
+          ### 快速开始
+          在下方评论区使用以下命令管理脚本：
+
+          ```
+          /list                    # 查看所有脚本
+          /add                     # 添加自写脚本（需在代码块中提供代码）
+          /add <url>               # 从网页同步脚本
+          /up <id>                 # 更新自写脚本
+          /sync <id>               # 手动同步单个脚本
+          /sync-all                # 批量同步所有脚本
+          /rm <id>                 # 删除脚本
+          /rm <url>                # 删除同步脚本（按原始 URL）
+          /info <id>               # 查看脚本详情
+          /enable <id>             # 启用脚本
+          /disable <id>            # 禁用脚本
+          /export [json|md]        # 导出安装列表
+          ```
+
+          ### 权限说明
+          - **仅仓库拥有者**可执行命令
+          - 非拥有者评论会被机器人自动删除
+          - 其他 Issue 的评论不触发任何操作
+
+          ### 示例：添加自写脚本
+          ~~~markdown
+          /add
+          # 我的去广告脚本
+
+          ```javascript
+          // ==UserScript==
+          // @name 我的去广告脚本
+          // @version 1.0.0
+          // @match *://*/*
+          // @grant none
+          // ==/UserScript==
+          (function() { console.log('Hello'); })();
+          ```
+          ~~~
+
+          ### 示例：同步第三方脚本
+          ```
+          /add https://greasyfork.org/zh-CN/scripts/12345
+          ```
+
+          ---
+          *此 Issue 由 Init Command Panel 工作流自动创建*
+          EOF
+          gh issue create -R ${{ github.repository }} \
+            --title "🎛️ 命令面板" \
+            --body-file /tmp/issue_body.md
