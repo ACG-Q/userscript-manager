@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timezone
 
-from userscript_manager.discussion_stats import (
-    DiscussionStats, LatestReply, build_query, clip, fetch_stats, relative_time,
+from userscript_manager.issue_stats import (
+    IssueStats, LatestReply, build_query, clip, fetch_stats, relative_time,
 )
 
 
@@ -24,8 +24,8 @@ def make_repo_data():
         "repository": {
             "d0": {
                 "number": 2,
-                "url": "https://github.com/t/r/discussions/2",
-                "isAnswered": True,
+                "url": "https://github.com/t/r/issues/2",
+                "state": "CLOSED",
                 "comments": {
                     "totalCount": 8,
                     "nodes": [
@@ -41,8 +41,8 @@ def make_repo_data():
 
 
 SCRIPTS = [
-    {"id": "abc123", "discussion": {"number": 2}},
-    {"id": "no-disc"},
+    {"id": "abc123", "issue": {"number": 2}},
+    {"id": "no-issue"},
 ]
 
 
@@ -52,7 +52,7 @@ class TestFetchStats(unittest.TestCase):
         out = fetch_stats(client, "t", "r", SCRIPTS)
         st = out["abc123"]
         self.assertEqual(st.reply_count, 8)
-        self.assertTrue(st.is_answered)
+        self.assertTrue(st.is_closed)
         self.assertEqual(len(st.replies), 2)
         self.assertEqual(st.replies[-1].author, "ACG-Q")
         self.assertTrue(st.replies[-1].is_owner)
@@ -65,7 +65,7 @@ class TestFetchStats(unittest.TestCase):
         self.assertEqual(out, {})
         self.assertEqual(len(client.calls), 1)
         query, variables = client.calls[0]
-        self.assertIn("d0: discussion(number: $n0)", query)
+        self.assertIn("d0: issue(number: $n0)", query)
         self.assertEqual(variables, {"owner": "t", "name": "r", "n0": 2})
 
     def test_fetch_returns_none_on_error(self):
@@ -82,6 +82,12 @@ class TestFetchStats(unittest.TestCase):
         data["repository"]["d0"]["comments"]["nodes"][1]["author"] = None
         out = fetch_stats(FakeClient(data), "t", "r", SCRIPTS)
         self.assertEqual(out["abc123"].replies[-1].author, "未知用户")
+
+    def test_open_state_maps_to_not_closed(self):
+        data = make_repo_data()
+        data["repository"]["d0"]["state"] = "OPEN"
+        out = fetch_stats(FakeClient(data), "t", "r", SCRIPTS)
+        self.assertFalse(out["abc123"].is_closed)
 
 
 class TestHelpers(unittest.TestCase):
@@ -102,8 +108,8 @@ class TestHelpers(unittest.TestCase):
         q = build_query(2)
         self.assertIn("$n0: Int!", q)
         self.assertIn("$n1: Int!", q)
-        self.assertIn("d0: discussion", q)
-        self.assertIn("d1: discussion", q)
+        self.assertIn("d0: issue", q)
+        self.assertIn("d1: issue", q)
         self.assertIn("comments(last: 2)", q)
 
 

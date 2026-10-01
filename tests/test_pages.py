@@ -21,7 +21,7 @@ CONFIG["github_repo"] = "testuser/testrepo"
 from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
 from build_pages import COMPONENT_CSS, TOKEN_CSS
 from build_pages import FILTER_JS as FILTER_JS_SRC
-from userscript_manager.discussion_stats import DiscussionStats, LatestReply
+from userscript_manager.issue_stats import IssueStats, LatestReply
 
 
 def make_script(**overrides):
@@ -43,9 +43,9 @@ def make_stats(answered=True, count=8, replies=None):
             author="ACG-Q", body="已修复，更新到 v1.0.1 即可。",
             created_at="2026-10-01T06:00:00Z", is_owner=True,
         ),)
-    return DiscussionStats(
+    return IssueStats(
         number=4, url="https://github.com/t/r/discussions/4",
-        is_answered=answered, reply_count=count, replies=replies,
+        is_closed=answered, reply_count=count, replies=replies,
     )
 
 

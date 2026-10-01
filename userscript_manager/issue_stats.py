@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""构建时拉取脚本讨论统计（回复数/已解决/最近 2 条回复），失败降级返回 None。"""
+"""构建时拉取脚本 Issue 统计（回复数/已解决/最近 2 条回复），失败降级返回 None。"""
 from __future__ import annotations
 
 import logging
@@ -13,7 +13,7 @@ _OWNER_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
 _FIELDS = """
 number
 url
-isAnswered
+state
 comments(last: 2) {
   totalCount
   nodes {
@@ -35,10 +35,10 @@ class LatestReply:
 
 
 @dataclass(frozen=True)
-class DiscussionStats:
+class IssueStats:
     number: int
     url: str
-    is_answered: bool
+    is_closed: bool
     reply_count: int
     replies: tuple[LatestReply, ...]  # 最近最多 2 条，按时间旧→新
 
@@ -47,7 +47,7 @@ def build_query(target_count: int) -> str:
     """生成带 d0..dN 别名的批量查询，一次请求取回全部讨论统计。"""
     args = ", ".join(f"$n{i}: Int!" for i in range(target_count))
     fields = "\n".join(
-        f"d{i}: discussion(number: $n{i}) {{ {_FIELDS} }}"
+        f"d{i}: issue(number: $n{i}) {{ {_FIELDS} }}"
         for i in range(target_count)
     )
     return (
@@ -81,13 +81,13 @@ def relative_time(iso: str, now: datetime | None = None) -> str:
 
 def fetch_stats(
     client, owner: str, name: str, scripts: list[dict]
-) -> dict[str, DiscussionStats] | None:
+) -> dict[str, IssueStats] | None:
     """按脚本 id 返回讨论统计字典。
 
-    无讨论的脚本不占位；整体请求失败返回 None（触发站点降级渲染）。"""
+    无 Issue 的脚本不占位；整体请求失败返回 None（触发站点降级渲染）。"""
     targets: list[tuple[str, int]] = []
     for s in scripts:
-        number = (s.get("discussion") or {}).get("number")
+        number = (s.get("issue") or {}).get("number")
         if number:
             targets.append((s["id"], number))
     if not targets:
@@ -101,7 +101,7 @@ def fetch_stats(
         log.warning("讨论统计拉取失败，站点降级渲染：%s", e)
         return None
     repository = (data or {}).get("repository") or {}
-    stats: dict[str, DiscussionStats] = {}
+    stats: dict[str, IssueStats] = {}
     for i, (sid, _number) in enumerate(targets):
         node = repository.get(f"d{i}")
         if not node:
@@ -117,10 +117,10 @@ def fetch_stats(
                 created_at=raw.get("createdAt") or "",
                 is_owner=raw.get("authorAssociation") in _OWNER_ASSOCIATIONS,
             ))
-        stats[sid] = DiscussionStats(
+        stats[sid] = IssueStats(
             number=node.get("number") or 0,
             url=node.get("url") or "",
-            is_answered=bool(node.get("isAnswered")),
+            is_closed=(node.get("state") == "CLOSED"),
             reply_count=comments.get("totalCount") or 0,
             replies=tuple(replies),
         )

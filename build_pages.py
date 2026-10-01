@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 import markdown as md
 
 from userscript_manager.config import CONFIG, get_install_url
-from userscript_manager.discussion_stats import clip, fetch_stats, relative_time
+from userscript_manager.issue_stats import clip, fetch_stats, relative_time
 from userscript_manager.escaping import escape_html
 from userscript_manager.registry import load_registry
 
@@ -516,7 +516,7 @@ def discussions_list_url() -> str:
 
 
 def discussion_badges(stats) -> str:
-    if stats.is_answered:
+    if stats.is_closed:
         return (
             f'<span class="badge" data-tip="讨论已被标记为已解决">'
             f"{ICON_CHECK}已解决</span>"
@@ -635,7 +635,7 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
         replies_html = answered_html = "—"
     else:
         replies_html = str(sum(st.reply_count for st in stats_map.values()))
-        answered_html = str(sum(1 for st in stats_map.values() if st.is_answered))
+        answered_html = str(sum(1 for st in stats_map.values() if st.is_closed))
     body = f"""<section class="hero">
 <h1>{BRAND}</h1>
 <p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
