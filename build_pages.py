@@ -789,7 +789,7 @@ def main() -> int:
     stats_by_id = None
     token = os.environ.get("GITHUB_TOKEN", "")
     if token:
-        from project_discussions import GraphQLClient
+        from project_issues import GraphQLClient
 
         owner, sep, name = os.environ.get("GITHUB_REPOSITORY", "").partition("/")
         if not sep:

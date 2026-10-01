@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
@@ -17,7 +18,7 @@ CONFIG["github_repo"] = "testuser/testrepo"
 
 from userscript_manager.registry import load_registry, save_registry
 from userscript_manager.issue_page import build_issue_body, build_marker, build_title
-from project_discussions import project, list_all_discussions
+from project_issues import project, list_all_issues
 
 
 def make_script(**overrides):
@@ -31,31 +32,45 @@ def make_script(**overrides):
 
 
 class FakeClient:
-    def __init__(self, discussions=None, categories=None):
-        self.discussions = [dict(d) for d in (discussions or [])]
-        self.categories = categories or [{"id": "CAT_G", "name": "General"}]
+    def __init__(self, issues=None, labels=None, fail_label=False):
+        self.issues = [dict(d) for d in (issues or [])]
+        self.labels = [dict(l) for l in (
+            labels if labels is not None else [{"id": "LBL_script", "name": "script"}]
+        )]
+        self.fail_label = fail_label
+        self.label_creates = []
         self.creates = []
         self.updates = []
+        self.list_queries = []
         self._next_number = 100
 
     def execute(self, query, variables=None):
         variables = variables or {}
-        if "discussionCategories" in query:
+        if "labels(first" in query:
             return {"repository": {"id": "REPO_NODE",
-                    "discussionCategories": {"nodes": list(self.categories)}}}
-        if "discussions(first" in query:
-            return {"repository": {"discussions": {
-                "nodes": [dict(d) for d in self.discussions],
+                    "labels": {"nodes": [dict(l) for l in self.labels]}}}
+        if "issues(first" in query:
+            self.list_queries.append(query)
+            return {"repository": {"issues": {
+                "nodes": [dict(d) for d in self.issues],
                 "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
-        if "createDiscussion" in query:
+        if "createLabel" in query:
+            if self.fail_label:
+                raise RuntimeError("FORBIDDEN: label 被拒")
+            self.label_creates.append(variables)
+            label = {"id": "LBL_new", "name": variables["name"]}
+            self.labels.append(label)
+            return {"createLabel": {"label": label}}
+        if "createIssue" in query:
             self._next_number += 1
-            created = {"id": f"D_new{self._next_number}", "number": self._next_number,
-                       "url": f"https://github.com/o/r/discussions/{self._next_number}"}
+            created = {"id": f"I_new{self._next_number}",
+                       "number": self._next_number,
+                       "url": f"https://github.com/o/r/issues/{self._next_number}"}
             self.creates.append({"variables": variables, "result": created})
-            return {"createDiscussion": {"discussion": created}}
-        if "updateDiscussion" in query:
-            self.updates.append(variables)
-            return {"updateDiscussion": {"discussion": {"id": variables["discussionId"],
+            return {"createIssue": {"issue": created}}
+        if "updateIssue" in query:
+            self.updates.append({"query": query, "variables": variables})
+            return {"updateIssue": {"issue": {"id": variables["issueId"],
                     "number": 0, "url": ""}}}
         raise AssertionError(f"未知查询: {query!r}")
 
@@ -68,61 +83,85 @@ class TestProjector(unittest.TestCase):
     def tearDown(self):
         CONFIG["registry_file"] = self._saved
 
-    def test_create_when_script_has_no_discussion(self):
+    def test_create_when_script_has_no_issue(self):
         registry = {"scripts": [make_script()]}
         client = FakeClient()
         actions = project(client, registry, "o", "r")
         self.assertEqual(len(client.creates), 1)
-        self.assertEqual(client.creates[0]["variables"]["categoryId"], "CAT_G")
-        self.assertEqual(registry["scripts"][0]["discussion"]["number"], 101)
-        self.assertEqual(load_registry()["scripts"][0]["discussion"]["node_id"], "D_new101")
+        self.assertEqual(client.creates[0]["variables"]["labelIds"], "LBL_script")
+        self.assertEqual(registry["scripts"][0]["issue"]["number"], 101)
+        self.assertEqual(load_registry()["scripts"][0]["issue"]["node_id"], "I_new101")
+        self.assertTrue(any("创建" in a for a in actions))
+
+    def test_label_ensure_skips_when_present(self):
+        client = FakeClient()
+        project(client, {"scripts": [make_script()]}, "o", "r")
+        self.assertEqual(client.label_creates, [])
+
+    def test_label_created_when_missing(self):
+        client = FakeClient(labels=[])
+        project(client, {"scripts": [make_script()]}, "o", "r")
+        self.assertEqual(len(client.label_creates), 1)
+        self.assertEqual(client.label_creates[0]["name"], "script")
+        self.assertEqual(client.creates[0]["variables"]["labelIds"], "LBL_new")
+
+    def test_label_failure_degrades_to_unlabeled(self):
+        client = FakeClient(labels=[], fail_label=True)
+        err = io.StringIO()
+        with redirect_stderr(err):
+            actions = project(client, {"scripts": [make_script()]}, "o", "r")
+        self.assertIsNone(client.creates[0]["variables"]["labelIds"])
+        self.assertIn("降级", err.getvalue())
         self.assertTrue(any("创建" in a for a in actions))
 
     def test_noop_when_body_already_in_sync(self):
-        script = make_script(discussion={"number": 1, "node_id": "D_1", "url": "u1"})
-        client = FakeClient(discussions=[{"id": "D_1", "number": 1,
-            "title": build_title(script), "body": build_issue_body(script), "url": "u1"}])
+        script = make_script(issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[{"id": "I_1", "number": 1,
+            "title": build_title(script), "body": build_issue_body(script),
+            "url": "u1", "state": "OPEN"}])
         project(client, {"scripts": [script]}, "o", "r")
         self.assertEqual(client.creates, [])
         self.assertEqual(client.updates, [])
 
     def test_update_when_body_stale(self):
-        script = make_script(discussion={"number": 1, "node_id": "D_1", "url": "u1"})
-        client = FakeClient(discussions=[{"id": "D_1", "number": 1,
-            "title": "旧标题", "body": "旧正文", "url": "u1"}])
+        script = make_script(issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[{"id": "I_1", "number": 1,
+            "title": "旧标题", "body": "旧正文", "url": "u1", "state": "OPEN"}])
         project(client, {"scripts": [script]}, "o", "r")
         self.assertEqual(len(client.updates), 1)
-        self.assertEqual(client.updates[0]["discussionId"], "D_1")
-        self.assertEqual(client.updates[0]["body"], build_issue_body(script))
-        self.assertEqual(client.updates[0]["title"], build_title(script))
+        self.assertEqual(client.updates[0]["variables"]["issueId"], "I_1")
+        self.assertEqual(client.updates[0]["variables"]["body"], build_issue_body(script))
+        self.assertEqual(client.updates[0]["variables"]["title"], build_title(script))
 
     def test_backfill_tracking_from_marker(self):
         script = make_script()
         stale_body = build_marker("abc123") + "\n旧内容"
-        client = FakeClient(discussions=[{"id": "D_9", "number": 9,
-            "title": build_title(script), "body": stale_body, "url": "u9"}])
+        client = FakeClient(issues=[{"id": "I_9", "number": 9,
+            "title": build_title(script), "body": stale_body,
+            "url": "u9", "state": "OPEN"}])
         actions = project(client, {"scripts": [script]}, "o", "r")
         self.assertEqual(client.creates, [])
-        self.assertEqual(script["discussion"]["node_id"], "D_9")
+        self.assertEqual(script["issue"]["node_id"], "I_9")
         self.assertTrue(any("回填" in a for a in actions))
-        self.assertEqual(load_registry()["scripts"][0]["discussion"]["number"], 9)
+        self.assertEqual(load_registry()["scripts"][0]["issue"]["number"], 9)
 
-    def test_orphan_tombstoned(self):
+    def test_orphan_tombstoned_with_close(self):
         registry = {"scripts": [make_script(id="kept")]}
         orphan_body = build_marker("gone") + "\n正文"
-        client = FakeClient(discussions=[{"id": "D_5", "number": 5,
-            "title": "📝 死脚本", "body": orphan_body, "url": "u5"}])
+        client = FakeClient(issues=[{"id": "I_5", "number": 5,
+            "title": "📝 死脚本", "body": orphan_body,
+            "url": "u5", "state": "OPEN"}])
         actions = project(client, registry, "o", "r")
         self.assertEqual(len(client.updates), 1)
-        self.assertTrue(client.updates[0]["title"].startswith("[已删除]"))
-        self.assertNotIn("script-id", client.updates[0]["body"])
+        self.assertIn("state: CLOSED", client.updates[0]["query"])
+        self.assertTrue(client.updates[0]["variables"]["title"].startswith("[已删除]"))
+        self.assertNotIn("script-id", client.updates[0]["variables"]["body"])
         self.assertTrue(any("墓碑" in a for a in actions))
 
-    def test_create_uses_alternate_category_when_preferred_missing(self):
-        registry = {"scripts": [make_script()]}
-        client = FakeClient(categories=[{"id": "CAT_X", "name": "脚本"}])
-        project(client, registry, "o", "r")
-        self.assertEqual(client.creates[0]["variables"]["categoryId"], "CAT_X")
+    def test_list_query_includes_closed_states(self):
+        client = FakeClient()
+        project(client, {"scripts": [make_script()]}, "o", "r")
+        self.assertIn("states: [OPEN, CLOSED]", client.list_queries[0])
 
 
 class PagedListClient:
@@ -133,19 +172,21 @@ class PagedListClient:
         variables = variables or {}
         self.calls += 1
         if not variables.get("cursor"):
-            return {"repository": {"discussions": {
-                "nodes": [{"id": "D1", "number": 1, "title": "t", "body": "b", "url": "u1"}],
+            return {"repository": {"issues": {
+                "nodes": [{"id": "I1", "number": 1, "title": "t",
+                           "body": "b", "url": "u1"}],
                 "pageInfo": {"hasNextPage": True, "endCursor": "CUR1"}}}}
-        return {"repository": {"discussions": {
-            "nodes": [{"id": "D2", "number": 2, "title": "t2", "body": "b2", "url": "u2"}],
+        return {"repository": {"issues": {
+            "nodes": [{"id": "I2", "number": 2, "title": "t2",
+                       "body": "b2", "url": "u2"}],
             "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
 
 
 class TestListPagination(unittest.TestCase):
-    def test_list_all_discussions_follows_cursor(self):
+    def test_list_all_issues_follows_cursor(self):
         client = PagedListClient()
-        out = list_all_discussions(client, "o", "r")
-        self.assertEqual([d["id"] for d in out], ["D1", "D2"])
+        out = list_all_issues(client, "o", "r")
+        self.assertEqual([d["id"] for d in out], ["I1", "I2"])
         self.assertEqual(client.calls, 2)
 
 
