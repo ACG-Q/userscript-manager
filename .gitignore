@@ -47,3 +47,6 @@ dist/scripts/
 
 # 本地设计文档与执行计划（不入库）
 docs/superpowers/
+
+# 浏览器自动化工具产物（不入库）
+.playwright-mcp/

@@ -121,6 +121,22 @@ class TestIndexPanels(unittest.TestCase):
         html = build_index({"scripts": []}, {})
         self.assertIn("暂无脚本", html)
 
+    def test_stats_panel_wraps_disc_head_in_sc_disc(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        self.assertIn('<div class="sc-disc"><div class="disc-head">', html)
+
+    def test_index_div_tags_balanced_with_stats(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        body = html[html.find("<body>"):html.find("</body>")]
+        self.assertEqual(
+            body.count("<div"), body.count("</div>"),
+            "div 开闭标签必须配平，否则 frame 会被提前关闭",
+        )
+
+    def test_hidden_cards_css_rule_present(self):
+        from build_pages import COMPONENT_CSS
+        self.assertIn("[hidden] { display: none !important; }", COMPONENT_CSS)
+
 
 class TestDetailPanels(unittest.TestCase):
     def test_no_discussion_empty_state(self):
@@ -152,6 +168,16 @@ class TestDetailPanels(unittest.TestCase):
         self.assertNotIn('<span class="badge">', html)
         self.assertIn("0 条回复", html)
         self.assertIn("还没有回复", html)
+
+    def test_detail_has_back_button_and_relative_home(self):
+        html = build_detail(make_script(), make_stats())
+        self.assertIn("返回列表", html)
+        self.assertIn('href="../index.html"', html)
+        self.assertIn('class="brand" href="../index.html"', html)
+
+    def test_index_brand_links_home(self):
+        html = build_index({"scripts": []})
+        self.assertIn('class="brand" href="index.html"', html)
 
 
 class TestBuildSiteStats(unittest.TestCase):

@@ -49,6 +49,7 @@ TOKEN_CSS = """
 
 COMPONENT_CSS = """
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; padding: 40px 16px; font-family: var(--font-ui); background: var(--page-bg); color: var(--text); }
 code { font-family: var(--font-mono); }
@@ -60,6 +61,9 @@ a:hover { text-decoration: underline; }
 .nav { display: flex; align-items: center; gap: 20px; padding: 14px 28px; border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
 .brand svg { color: var(--brand); display: block; }
+a.brand { color: var(--text); }
+a.brand:hover { text-decoration: none; color: var(--brand); }
+.back { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
 .nav .spacer { flex: 1; }
 .nav a.link { color: var(--text); font-size: 14px; font-weight: 500; padding: 10px 6px; min-height: 44px; display: inline-flex; align-items: center; }
 .nav a.link:hover { color: var(--brand); text-decoration: none; }
@@ -174,7 +178,7 @@ def render_markdown(text: str) -> str:
     return md.markdown(text or "", extensions=["fenced_code", "tables"])
 
 
-def page(title: str, body_html: str, extra_js: str = "") -> str:
+def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index.html") -> str:
     repo = escape_html(CONFIG["github_repo"])
     issue = CONFIG["control_issue_number"]
     return f"""<!DOCTYPE html>
@@ -188,7 +192,7 @@ def page(title: str, body_html: str, extra_js: str = "") -> str:
 <body>
 <div class="frame">
 <header class="nav">
-<span class="brand"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>{BRAND}</span>
+<a class="brand" href="{root_href}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>{BRAND}</a>
 <span class="spacer"></span>
 <a class="link" href="https://github.com/{repo}/blob/master/docs/index.md">文档</a>
 <a class="link" href="https://github.com/{repo}">GitHub 仓库</a>
@@ -247,7 +251,7 @@ def script_discussion_panel(script: dict, stats) -> str:
             f'<p class="disc-empty"><span>摘要暂不可用</span>'
             f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></p></div>'
         )
-    head = f'<div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
+    head = f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
     if stats.replies:
         latest = stats.replies[-1]
         who = "仓库所有者" if latest.is_owner else latest.author
@@ -416,6 +420,7 @@ def build_detail(script: dict, stats=None) -> str:
 
     body = f"""<main>
 <section class="detail-card">
+<a class="back" href="../index.html">← 返回列表</a>
 <div class="d-head">
 <div>
 <div class="d-pills">{type_html}{version_html}<span class="status{status_cls}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
@@ -435,7 +440,7 @@ def build_detail(script: dict, stats=None) -> str:
 </section>
 </section>
 </main>"""
-    return page(script.get("name", script["id"]), body)
+    return page(script.get("name", script["id"]), body, root_href="../index.html")
 
 
 def build_site(registry: dict, stats_by_id: dict | None = None) -> list[Path]:
