@@ -11,8 +11,8 @@ from userscript_manager.config import CONFIG
 CONFIG["github_pages"]["base_url"] = ""
 CONFIG["github_repo"] = "testuser/testrepo"
 
-from userscript_manager.discussion_page import (
-    build_discussion_body, build_marker, build_title,
+from userscript_manager.issue_page import (
+    build_issue_body, build_marker, build_title,
     script_id_from_body, tombstone_body, tombstone_title,
 )
 
@@ -27,9 +27,9 @@ def make_script(**overrides):
     return script
 
 
-class TestDiscussionBody(unittest.TestCase):
+class TestIssueBody(unittest.TestCase):
     def test_marker_is_first_line_and_roundtrips(self):
-        body = build_discussion_body(make_script())
+        body = build_issue_body(make_script())
         first = body.splitlines()[0]
         self.assertEqual(first, build_marker("abc123"))
         self.assertEqual(script_id_from_body(body), "abc123")
@@ -40,13 +40,13 @@ class TestDiscussionBody(unittest.TestCase):
 
     def test_metadata_table_contains_escaped_fields(self):
         script = make_script(name="甲|乙", version="1.0.1")
-        body = build_discussion_body(script)
+        body = build_issue_body(script)
         self.assertIn("甲\\|乙", body)
         self.assertIn("| 版本 | 1.0.1 |", body)
         self.assertIn("[安装脚本](https://testuser.github.io/testrepo/dist/abc123.user.js)", body)
 
     def test_documentation_rendered_verbatim(self):
-        body = build_discussion_body(make_script(documentation="## 用法\n\n- 点击"))
+        body = build_issue_body(make_script(documentation="## 用法\n\n- 点击"))
         self.assertIn("## 用法", body)
 
     def test_changelog_rows_rendered_newest_first(self):
@@ -54,16 +54,16 @@ class TestDiscussionBody(unittest.TestCase):
             {"version": "1.0.1", "date": "2026-10-01", "note": "手动更新"},
             {"version": "1.0.0", "date": "2026-09-30", "note": "初始版本"},
         ])
-        body = build_discussion_body(script)
+        body = build_issue_body(script)
         self.assertLess(body.index("1.0.1"), body.index("1.0.0"))
 
     def test_empty_changelog_placeholder(self):
-        body = build_discussion_body(make_script(changelog=[]))
+        body = build_issue_body(make_script(changelog=[]))
         self.assertIn("暂无更新记录", body)
 
     def test_build_is_deterministic(self):
         script = make_script()
-        self.assertEqual(build_discussion_body(script), build_discussion_body(script))
+        self.assertEqual(build_issue_body(script), build_issue_body(script))
 
     def test_title_escapes(self):
         self.assertEqual(build_title(make_script(name="A|B")), "📝 A\\|B")

@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pages UI 重设计 · 三方向 DEMO</title>
+<style>
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; padding: 72px 0 0;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5; color: #1f2328;
+  }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; }
+
+  .switcher {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 50;
+    display: flex; gap: 8px; align-items: center; justify-content: center;
+    padding: 12px 16px; background: #ffffffee; backdrop-filter: blur(8px);
+    border-bottom: 1px solid #d8dee4; flex-wrap: wrap;
+  }
+  .switcher .label { font-size: 13px; color: #57606a; margin-right: 4px; }
+  .switcher button {
+    min-height: 44px; padding: 0 18px; border-radius: 999px; cursor: pointer;
+    border: 1px solid #d0d7de; background: #fff; font-size: 14px; color: #1f2328;
+    font-weight: 600; transition: background .15s ease, border-color .15s ease;
+  }
+  .switcher button:hover { background: #f6f8fa; }
+  .switcher button[aria-pressed="true"] { background: #1f2328; color: #fff; border-color: #1f2328; }
+  .switcher button:focus-visible { outline: 2px solid #0969da; outline-offset: 2px; }
+
+  .note { max-width: 1060px; margin: 16px auto 0; padding: 0 20px; font-size: 13px; color: #57606a; }
+
+  .mock { max-width: 1060px; margin: 16px auto 64px; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+  .mock[hidden] { display: none; }
+
+  .nav { display: flex; align-items: center; gap: 20px; padding: 14px 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+  .brand svg { display: block; }
+  .nav .spacer { flex: 1; }
+  .nav a.link { text-decoration: none; font-size: 14px; font-weight: 500; padding: 10px 6px; min-height: 44px; display: inline-flex; align-items: center; }
+
+  .hero { padding: 36px 28px 28px; }
+  .hero h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -.01em; }
+  .hero .sub { margin: 0 0 20px; font-size: 15px; line-height: 1.6; max-width: 640px; }
+  .stats { display: flex; gap: 12px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 150px; padding: 14px 16px; border-radius: 10px; }
+  .stat b { display: block; font-size: 24px; line-height: 1.2; }
+  .stat span { font-size: 13px; }
+
+  main { padding: 8px 28px 36px; }
+  .sec { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 26px 0 14px; font-size: 18px; }
+  .filters { display: inline-flex; gap: 6px; }
+  .chip { font-size: 13px; padding: 7px 14px; border-radius: 999px; cursor: pointer; border: 1px solid transparent; background: none; min-height: 34px; }
+
+  .script-card { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 18px; padding: 18px; border-radius: 12px; margin-bottom: 12px; align-items: start; }
+  .sc-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .sc-title h3 { margin: 0; font-size: 16px; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+  .status { font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .sc-desc { margin: 0 0 6px; font-size: 14px; line-height: 1.55; }
+  .sc-meta { margin: 0; font-size: 12.5px; }
+  .sc-meta code { padding: 2px 6px; border-radius: 5px; font-size: 12px; }
+
+  .sc-disc { border-radius: 10px; padding: 12px 14px; font-size: 13px; }
+  .disc-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+  .disc-head svg { flex: none; }
+  .badge { font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+  .disc-latest { margin: 0; line-height: 1.55; }
+  .disc-who { display: block; margin-top: 4px; font-size: 12px; }
+  .disc-empty { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; }
+  .disc-empty a { font-weight: 600; font-size: 13px; }
+
+  .sc-actions { display: flex; flex-direction: column; gap: 8px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-height: 44px; padding: 0 18px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    text-decoration: none; cursor: pointer; border: 1px solid transparent; white-space: nowrap;
+    transition: background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .btn:focus-visible { outline: 2px solid #0969da; outline-offset: 2px; }
+  .btn.big { min-height: 48px; padding: 0 24px; font-size: 15px; }
+
+  .detail-card { border-radius: 14px; padding: 24px; }
+  .d-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .d-head h3 { margin: 0 0 8px; font-size: 22px; }
+  .d-pills { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .d-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13.5px; margin: 16px 0; padding: 12px 0; }
+  .d-meta i { font-style: normal; opacity: .7; margin-right: 4px; }
+  .d-doc h4 { margin: 18px 0 8px; font-size: 15px; }
+  .d-doc p { margin: 0; font-size: 14.5px; line-height: 1.65; }
+  .d-doc code { padding: 1px 6px; border-radius: 5px; font-size: 13px; }
+
+  .d-disc { margin-top: 20px; border-radius: 12px; padding: 16px; }
+  .d-disc .disc-head { font-size: 14px; margin-bottom: 12px; }
+  .d-disc .disc-head .grow { flex: 1; }
+  .d-disc .disc-head a { font-size: 13px; font-weight: 600; }
+  .cmt { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 10px 0; border-top: 1px solid transparent; font-size: 14px; }
+  .cmt b { font-size: 13.5px; }
+  .cmt time { font-size: 12px; align-self: center; }
+  .cmt p { grid-column: 1 / -1; margin: 2px 0 0; line-height: 1.6; }
+  .d-disc .btn { margin-top: 12px; }
+
+  footer.foot { padding: 18px 28px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  footer.foot a { font-weight: 600; }
+
+  @media (max-width: 760px) {
+    .script-card { grid-template-columns: 1fr; }
+    .sc-actions { flex-direction: row; }
+    .hero h1 { font-size: 24px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+
+  /* ================= 方向 A · 清爽蓝（GitHub 原生） ================= */
+  .theme-a { background: #fff; color: #1f2328; border: 1px solid #d8dee4; }
+  .theme-a .nav { border-bottom: 1px solid #d8dee4; }
+  .theme-a .brand svg { color: #0969da; }
+  .theme-a .nav a.link { color: #1f2328; }
+  .theme-a .nav a.link:hover { color: #0969da; }
+  .theme-a .btn.nav-btn { background: #0969da; color: #fff; border-radius: 8px; }
+  .theme-a .btn.nav-btn:hover { background: #0860ca; }
+  .theme-a .hero { border-bottom: 1px solid #d8dee4; background: #f6f8fa; }
+  .theme-a .sub { color: #57606a; }
+  .theme-a .stat { background: #fff; border: 1px solid #d8dee4; }
+  .theme-a .stat b { color: #0969da; }
+  .theme-a .stat span { color: #57606a; }
+  .theme-a .sec { color: #1f2328; }
+  .theme-a .chip { border-color: #d8dee4; color: #57606a; background: #fff; }
+  .theme-a .chip.active { background: #0969da; border-color: #0969da; color: #fff; }
+  .theme-a .script-card { border: 1px solid #d8dee4; background: #fff; }
+  .theme-a .script-card:hover { border-color: #0969da66; }
+  .theme-a .pill.type-self { background: #ddf4ff; color: #0969da; }
+  .theme-a .pill.type-sync { background: #fff8c5; color: #9a6700; }
+  .theme-a .pill.ver { background: #f6f8fa; color: #57606a; border: 1px solid #d8dee4; }
+  .theme-a .status { color: #1a7f37; }
+  .theme-a .status.off { color: #cf222e; }
+  .theme-a .dot { background: #1a7f37; }
+  .theme-a .status.off .dot { background: #cf222e; }
+  .theme-a .sc-meta { color: #57606a; }
+  .theme-a .sc-meta code { background: #f6f8fa; border: 1px solid #d8dee4; }
+  .theme-a .sc-disc { background: #f6f8fa; border: 1px solid #d8dee4; }
+  .theme-a .badge { background: #dafbe1; color: #1a7f37; }
+  .theme-a .badge.plain { background: #eaeef2; color: #57606a; }
+  .theme-a .disc-who { color: #57606a; }
+  .theme-a .disc-empty a, .theme-a .disc-head a { color: #0969da; }
+  .theme-a .btn.primary { background: #1f883d; color: #fff; }
+  .theme-a .btn.primary:hover { background: #1a7f37; }
+  .theme-a .btn.ghost { background: #f6f8fa; border-color: #d8dee4; color: #1f2328; }
+  .theme-a .btn.ghost:hover { background: #eaeef2; border-color: #b1b9c1; }
+  .theme-a .d-head .pill { vertical-align: middle; }
+  .theme-a .d-meta { color: #57606a; border-bottom: 1px solid #d8dee4; }
+  .theme-a .d-doc p { color: #1f2328; }
+  .theme-a .d-doc code { background: #f6f8fa; border: 1px solid #d8dee4; }
+  .theme-a .detail-card { border: 1px solid #d8dee4; }
+  .theme-a .d-disc { background: #f6f8fa; border: 1px solid #d8dee4; }
+  .theme-a .cmt { border-top-color: #d8dee4; }
+  .theme-a .cmt:first-of-type { border-top: none; }
+  .theme-a .cmt time { color: #57606a; }
+  .theme-a .cmt.owner b::after { content: "· 仓库所有者"; color: #1a7f37; font-weight: 600; margin-left: 6px; font-size: 12px; }
+  .theme-a footer.foot { border-top: 1px solid #d8dee4; color: #57606a; background: #f6f8fa; }
+  .theme-a footer.foot a { color: #0969da; }
+
+  /* ================= 方向 B · 硬核绿（开发者暗色） ================= */
+  .theme-b { background: #101411; color: #d0d2d1; font-variant-numeric: tabular-nums; }
+  .theme-b .nav { background: #0b0e0c; border-bottom: 1px solid #2c302c; }
+  .theme-b .brand { color: #3fb950; font-family: ui-monospace, Consolas, monospace; letter-spacing: -.02em; }
+  .theme-b .nav a.link { color: #898f8a; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .theme-b .nav a.link:hover { color: #3fb950; }
+  .theme-b .btn.nav-btn { background: #1c211d; color: #3fb950; border: 1px solid #2c302c; border-radius: 6px; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .btn.nav-btn:hover { border-color: #3fb950; background: #1c211d; }
+  .theme-b .hero { background: #0b0e0c; border-bottom: 1px solid #2c302c; }
+  .theme-b .hero h1 { color: #eef1ef; font-family: ui-monospace, Consolas, monospace; font-size: 24px; }
+  .theme-b .hero h1::before { content: "$ "; color: #3fb950; }
+  .theme-b .sub { color: #898f8a; font-family: ui-monospace, Consolas, monospace; font-size: 13.5px; }
+  .theme-b .stat { background: #191f1a; border: 1px solid #2c302c; border-radius: 6px; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .stat b { color: #3fb950; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .stat span { color: #898f8a; }
+  .theme-b .sec { color: #eef1ef; font-family: ui-monospace, Consolas, monospace; font-size: 15px; }
+  .theme-b .sec::before { content: "// "; color: #3fb950; }
+  .theme-b .chip { border-color: #2c302c; color: #898f8a; background: #191f1a; font-family: ui-monospace, Consolas, monospace; font-size: 12px; border-radius: 4px; }
+  .theme-b .chip.active { background: #3fb950; border-color: #3fb950; color: #0c110d; }
+  .theme-b .script-card { background: #191f1a; border: 1px solid #2c302c; border-radius: 6px; }
+  .theme-b .script-card:hover { border-color: #3fb95066; }
+  .theme-b .sc-title h3 { color: #eef1ef; font-size: 15px; }
+  .theme-b .pill.type-self { background: #12351d; color: #3fb950; border: 1px solid #1c211d; }
+  .theme-b .pill.type-sync { background: #2c302c; color: #b1b4b1; border: 1px solid #3b403b; }
+  .theme-b .pill.ver { background: transparent; color: #898f8a; border: 1px dashed #3b403b; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .status { color: #3fb950; }
+  .theme-b .status.off { color: #d61f1f; }
+  .theme-b .dot { background: #3fb950; box-shadow: 0 0 6px #3fb95088; }
+  .theme-b .status.off .dot { background: #d61f1f; box-shadow: none; }
+  .theme-b .sc-desc { color: #b1b4b1; }
+  .theme-b .sc-meta { color: #898f8a; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .theme-b .sc-meta code { background: #0b0e0c; border: 1px solid #2c302c; color: #3fb950; }
+  .theme-b .sc-disc { background: #0b0e0c; border: 1px solid #2c302c; border-radius: 6px; }
+  .theme-b .disc-head { color: #eef1ef; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .theme-b .disc-head svg { color: #3fb950; }
+  .theme-b .badge { background: #12351d; color: #3fb950; border: 1px solid #1c211d; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .badge.plain { background: #2c302c; color: #b1b4b1; border-color: #3b403b; }
+  .theme-b .disc-latest { color: #b1b4b1; }
+  .theme-b .disc-who { color: #898f8a; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .disc-empty a, .theme-b .disc-head a { color: #3fb950; }
+  .theme-b .disc-empty { color: #898f8a; }
+  .theme-b .btn { border-radius: 6px; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .btn.primary { background: #3fb950; color: #0c110d; }
+  .theme-b .btn.primary:hover { background: #58d66d; }
+  .theme-b .btn.ghost { background: transparent; border-color: #2c302c; color: #b1b4b1; }
+  .theme-b .btn.ghost:hover { border-color: #3fb950; color: #3fb950; }
+  .theme-b .detail-card { background: #191f1a; border: 1px solid #2c302c; border-radius: 6px; }
+  .theme-b .d-head h3 { color: #eef1ef; font-family: ui-monospace, Consolas, monospace; font-size: 20px; }
+  .theme-b .d-meta { color: #898f8a; border-bottom: 1px solid #2c302c; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .theme-b .d-doc h4 { color: #3fb950; font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+  .theme-b .d-doc p { color: #b1b4b1; }
+  .theme-b .d-doc code { background: #0b0e0c; border: 1px solid #2c302c; color: #3fb950; }
+  .theme-b .d-disc { background: #0b0e0c; border: 1px solid #2c302c; border-radius: 6px; }
+  .theme-b .cmt { border-top-color: #2c302c; color: #b1b4b1; }
+  .theme-b .cmt b { color: #eef1ef; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .theme-b .cmt time { color: #898f8a; font-family: ui-monospace, Consolas, monospace; }
+  .theme-b .cmt.owner b::after { content: "· 仓库所有者"; color: #3fb950; margin-left: 6px; font-size: 12px; }
+  .theme-b footer.foot { border-top: 1px solid #2c302c; color: #898f8a; background: #0b0e0c; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .theme-b footer.foot a { color: #3fb950; }
+
+  /* ================= 方向 C · 表达紫（现代 SaaS） ================= */
+  .theme-c { background: #fbfaff; color: #211d2e; }
+  .theme-c .nav { background: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); }
+  .theme-c .brand { color: #fff; }
+  .theme-c .nav a.link { color: #e9e4ff; }
+  .theme-c .nav a.link:hover { color: #fff; }
+  .theme-c .btn.nav-btn { background: #fff; color: #6e56cf; border-radius: 999px; }
+  .theme-c .btn.nav-btn:hover { background: #f1ecff; }
+  .theme-c .hero { background: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); color: #fff; padding-top: 44px; padding-bottom: 36px; }
+  .theme-c .hero h1 { color: #fff; font-size: 32px; }
+  .theme-c .sub { color: #e9e4ff; }
+  .theme-c .stat { background: #ffffff22; border: 1px solid #ffffff55; backdrop-filter: blur(4px); border-radius: 14px; }
+  .theme-c .stat b { color: #fff; }
+  .theme-c .stat span { color: #e9e4ff; }
+  .theme-c .sec { color: #211d2e; font-size: 19px; }
+  .theme-c .chip { border-color: #ddd6f5; color: #695f8a; background: #fff; border-radius: 999px; }
+  .theme-c .chip.active { background: #6e56cf; border-color: #6e56cf; color: #fff; }
+  .theme-c .script-card { background: #fff; border: 1px solid #ece8f8; box-shadow: 0 4px 16px rgba(110,86,207,.07); border-radius: 18px; transition: transform .15s ease, box-shadow .15s ease; }
+  .theme-c .script-card:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(110,86,207,.14); }
+  .theme-c .sc-title h3 { color: #211d2e; font-size: 17px; }
+  .theme-c .pill.type-self { background: #ede9fe; color: #6e56cf; }
+  .theme-c .pill.type-sync { background: #fef3c7; color: #92610a; }
+  .theme-c .pill.ver { background: #f4f2fa; color: #695f8a; }
+  .theme-c .status { color: #188947; }
+  .theme-c .status.off { color: #d61f1f; }
+  .theme-c .dot { background: #22c365; }
+  .theme-c .status.off .dot { background: #d61f1f; }
+  .theme-c .sc-desc { color: #4b4560; }
+  .theme-c .sc-meta { color: #857da8; }
+  .theme-c .sc-meta code { background: #f4f2fa; color: #6e56cf; }
+  .theme-c .sc-disc { background: #f6f3ff; border: 1px solid #ece8f8; }
+  .theme-c .disc-head { color: #4338ca; }
+  .theme-c .badge { background: #dcfce7; color: #188947; }
+  .theme-c .badge.plain { background: #ede9fe; color: #6e56cf; }
+  .theme-c .disc-latest { color: #4b4560; }
+  .theme-c .disc-who { color: #857da8; }
+  .theme-c .disc-empty a, .theme-c .disc-head a { color: #6e56cf; }
+  .theme-c .disc-empty { color: #857da8; }
+  .theme-c .btn { border-radius: 999px; }
+  .theme-c .btn.primary { background: linear-gradient(135deg, #6e56cf, #8b5cf6); color: #fff; box-shadow: 0 6px 16px rgba(110,86,207,.35); }
+  .theme-c .btn.primary:hover { box-shadow: 0 8px 20px rgba(110,86,207,.45); }
+  .theme-c .btn.ghost { background: #fff; border-color: #ddd6f5; color: #4338ca; }
+  .theme-c .btn.ghost:hover { border-color: #6e56cf; }
+  .theme-c .detail-card { background: #fff; border: 1px solid #ece8f8; box-shadow: 0 6px 22px rgba(110,86,207,.08); border-radius: 20px; }
+  .theme-c .d-head h3 { color: #211d2e; }
+  .theme-c .d-meta { color: #695f8a; border-bottom: 1px solid #ece8f8; }
+  .theme-c .d-doc h4 { color: #6e56cf; }
+  .theme-c .d-doc p { color: #4b4560; }
+  .theme-c .d-doc code { background: #f4f2fa; color: #6e56cf; }
+  .theme-c .d-disc { background: #f6f3ff; border: 1px solid #ece8f8; }
+  .theme-c .cmt { border-top-color: #ece8f8; color: #4b4560; }
+  .theme-c .cmt b { color: #211d2e; }
+  .theme-c .cmt time { color: #857da8; }
+  .theme-c .cmt.owner b::after { content: "· 仓库所有者"; color: #6e56cf; margin-left: 6px; font-size: 12px; }
+  .theme-c footer.foot { border-top: 1px solid #ece8f8; color: #857da8; background: #fff; }
+  .theme-c footer.foot a { color: #6e56cf; }
+
+  /* ================= 主题切换开关 · 分段控件设计 ================= */
+  .switch-design { max-width: 1060px; margin: 16px auto 32px; padding: 24px 28px; background: #fff; border: 1px solid #d8dee4; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.08); }
+  .switch-design h2 { margin: 0 0 6px; font-size: 18px; color: #1f2328; }
+  .switch-design .sd-note { margin: 0 0 20px; font-size: 13px; color: #57606a; }
+  .sd-row { display: flex; gap: 40px; flex-wrap: wrap; margin-bottom: 22px; }
+  .sd-case { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .sd-case figcaption { font-size: 12px; color: #57606a; }
+  .sd-live-label { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: #1f2328; }
+  .seg-control { display: inline-flex; padding: 3px; border-radius: 999px; border: 1px solid #d0d7de; background: #f6f8fa; }
+  .seg-control button { padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; border: none; background: transparent; color: #57606a; cursor: pointer; transition: background .15s ease, color .15s ease; font-family: inherit; }
+  .seg-control button:hover, .seg-control button.is-hover { background: #eaeef2; color: #1f2328; }
+  .seg-control button[aria-pressed="true"] { background: #1f2328; color: #fff; }
+  .seg-control button[aria-pressed="true"]:hover, .seg-control button[aria-pressed="true"].is-hover { background: #1f2328; color: #fff; }
+
+  /* ================= 悬浮设置长条 + 侧边栏 ================= */
+  .theme-rail { position: fixed; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 7px; background: #f6f8fa; border: 1px solid #d0d7de; border-right: none; border-radius: 8px 0 0 8px; cursor: pointer; z-index: 60; transition: background .15s ease; }
+  .theme-rail:hover { background: #eaeef2; }
+  .theme-rail:focus-visible { outline: 2px solid #0969da; outline-offset: 2px; }
+  .rail-text { writing-mode: vertical-rl; font-size: 13px; font-weight: 600; color: #1f2328; letter-spacing: 3px; }
+  .sd-overlay { position: fixed; inset: 0; background: rgba(14, 17, 22, .4); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s; z-index: 70; }
+  .sd-overlay.open { opacity: 1; visibility: visible; }
+  .settings-drawer { position: fixed; top: 0; right: 0; height: 100%; width: 340px; box-sizing: border-box; padding: 20px; background: #fff; border-left: 1px solid #d8dee4; box-shadow: -8px 0 30px rgba(0, 0, 0, .12); transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility .2s; z-index: 80; overflow-y: auto; }
+  .settings-drawer.open { transform: translateX(0); visibility: visible; }
+  .sd-head { display: flex; align-items: center; justify-content: space-between; }
+  .sd-head h3 { margin: 0; font-size: 16px; color: #1f2328; }
+  .sd-close { border: none; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: #57606a; }
+  .sd-close:hover { background: #eaeef2; }
+  .sd-group h4 { margin: 18px 0 8px; font-size: 12px; font-weight: 600; color: #57606a; }
+  .theme-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .theme-list button { display: flex; flex-direction: column; width: 100%; padding: 0; overflow: hidden; border-radius: 8px; border: 1px solid #d0d7de; background: #fff; font-size: 14px; font-family: inherit; color: #1f2328; cursor: pointer; text-align: left; transition: background .15s ease, border-color .15s ease; }
+  .theme-list button:hover { background: #f6f8fa; }
+  .theme-list button[aria-pressed="true"] { border-color: #1f2328; background: #f6f8fa; }
+  .tl-label { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-weight: 400; }
+  .theme-list button[aria-pressed="true"] .tl-label { font-weight: 600; }
+  .tl-preview { display: flex; flex-direction: column; border-bottom: 1px solid var(--pv-card-bd); }
+  .tl-preview .pv-bar { padding: 5px 8px; }
+  .tl-preview .pv-brand { width: 28px; height: 6px; }
+  .tl-preview .pv-link { width: 12px; height: 4px; }
+  .tl-preview .pv-pill { width: 24px; height: 9px; }
+  .tl-preview .pv-hero { padding: 6px 8px 7px; }
+  .tl-preview .pv-title { height: 7px; }
+  .tl-preview .pv-sub { height: 4px; margin-top: 4px; }
+  .tl-preview .pv-stats { margin-top: 5px; }
+  .tl-preview .pv-stats i { height: 13px; border-radius: 4px; }
+  .tl-preview .pv-body { padding: 5px 8px 6px; }
+  .tl-preview .pv-card { height: 16px; border-radius: 4px; }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); flex: none; }
+  .swatch-a { background: #0969da; }
+  .swatch-b { background: #3fb950; }
+  .swatch-c { background: #8b5cf6; }
+  .check { margin-left: auto; font-weight: 700; visibility: hidden; }
+  .theme-list button[aria-pressed="true"] .check { visibility: visible; }
+  .sd-soon { margin: 0; font-size: 13px; color: #8c959f; }
+  .pv-bar { display: flex; align-items: center; gap: 6px; padding: 7px 9px; background: var(--pv-bar-bg); border-bottom: 1px solid var(--pv-bar-bd); }
+  .pv-brand { width: 34px; height: 7px; border-radius: 4px; background: var(--pv-bar-fg); }
+  .pv-link { width: 16px; height: 5px; border-radius: 3px; background: var(--pv-sub); opacity: .7; }
+  .pv-pill { margin-left: auto; width: 30px; height: 11px; border-radius: 999px; background: var(--pv-accent); }
+  .pv-hero { display: block; padding: 9px 10px 10px; background: var(--pv-hero-bg); }
+  .pv-title { display: block; width: 58%; height: 9px; border-radius: 4px; background: var(--pv-title); }
+  .pv-sub { display: block; width: 80%; height: 5px; border-radius: 3px; background: var(--pv-sub); margin-top: 6px; }
+  .pv-stats { display: flex; gap: 5px; margin-top: 8px; }
+  .pv-stats i { flex: 1; height: 20px; border-radius: 5px; background: var(--pv-stat-bg); border: 1px solid var(--pv-stat-bd); }
+  .pv-body { display: flex; gap: 5px; padding: 8px 10px 10px; background: var(--pv-body-bg); }
+  .pv-card { flex: 1; height: 26px; border-radius: 6px; background: var(--pv-card-bg); border: 1px solid var(--pv-card-bd); }
+  .pv-a { --pv-bar-bg: #fff; --pv-bar-bd: #d8dee4; --pv-bar-fg: #0969da; --pv-hero-bg: #f6f8fa; --pv-title: #1f2328; --pv-sub: #8c959f; --pv-stat-bg: #fff; --pv-stat-bd: #d8dee4; --pv-accent: #0969da; --pv-body-bg: #fff; --pv-card-bg: #fff; --pv-card-bd: #d8dee4; }
+  .pv-b { --pv-bar-bg: #0b0e0c; --pv-bar-bd: #2c302c; --pv-bar-fg: #3fb950; --pv-hero-bg: #0b0e0c; --pv-title: #eef1ef; --pv-sub: #898f8a; --pv-stat-bg: #191f1a; --pv-stat-bd: #2c302c; --pv-accent: #3fb950; --pv-body-bg: #101411; --pv-card-bg: #191f1a; --pv-card-bd: #2c302c; }
+  .pv-c { --pv-bar-bg: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); --pv-bar-bd: transparent; --pv-bar-fg: #fff; --pv-hero-bg: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); --pv-title: #fff; --pv-sub: #e9e4ff; --pv-stat-bg: rgba(255, 255, 255, .13); --pv-stat-bd: rgba(255, 255, 255, .33); --pv-accent: #6e56cf; --pv-body-bg: #faf9ff; --pv-card-bg: #fff; --pv-card-bd: #ece8f8; }
+</style>
+</head>
+<body>
+
+<div class="switcher" role="group" aria-label="设计方向切换">
+  <span class="label">设计方向：</span>
+  <button type="button" data-theme="a" aria-pressed="true">A · 清爽蓝（GitHub 原生）</button>
+  <button type="button" data-theme="b" aria-pressed="false">B · 硬核绿（开发者暗色）</button>
+  <button type="button" data-theme="c" aria-pressed="false">C · 表达紫（现代 SaaS）</button>
+</div>
+
+<p class="note">以下为静态示意（mock 数据）：讨论回复数、最新回复、已解决状态在真实站点由构建时 GraphQL 拉取，随讨论事件自动重建刷新。</p>
+
+<section class="switch-design">
+  <h2>主题切换开关 · 分段控件</h2>
+  <p class="sd-note">三主题并排分段选择，当前项高亮；用于站点导航栏右侧。入口见右侧悬浮条 →</p>
+  <div class="sd-row">
+    <figure class="sd-case">
+      <div class="seg-control">
+        <button type="button" aria-pressed="true">清爽蓝</button>
+        <button type="button" aria-pressed="false">硬核绿</button>
+        <button type="button" aria-pressed="false">表达紫</button>
+      </div>
+      <figcaption>默认</figcaption>
+    </figure>
+    <figure class="sd-case">
+      <div class="seg-control">
+        <button type="button" aria-pressed="true">清爽蓝</button>
+        <button type="button" aria-pressed="false" class="is-hover">硬核绿</button>
+        <button type="button" aria-pressed="false">表达紫</button>
+      </div>
+      <figcaption>悬停</figcaption>
+    </figure>
+    <figure class="sd-case">
+      <div class="seg-control">
+        <button type="button" aria-pressed="false">清爽蓝</button>
+        <button type="button" aria-pressed="false">硬核绿</button>
+        <button type="button" aria-pressed="true">表达紫</button>
+      </div>
+      <figcaption>选中</figcaption>
+    </figure>
+  </div>
+  <p class="sd-live-label">试试 →</p>
+  <div class="seg-control sd-live">
+    <button type="button" data-theme="a" aria-pressed="true">清爽蓝</button>
+    <button type="button" data-theme="b" aria-pressed="false">硬核绿</button>
+    <button type="button" data-theme="c" aria-pressed="false">表达紫</button>
+  </div>
+</section>
+
+<div class="mock theme-a" id="mock">
+  <header class="nav">
+    <span class="brand">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      油猴脚本管理器
+    </span>
+    <span class="spacer"></span>
+    <a class="link" href="#">文档</a>
+    <a class="link" href="#">GitHub 仓库</a>
+    <a class="btn nav-btn" href="#">管理入口 · Issue #1</a>
+  </header>
+
+  <section class="hero">
+    <h1>油猴脚本管理器</h1>
+    <p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
+    <div class="stats">
+      <div class="stat"><b>3</b><span>脚本总数</span></div>
+      <div class="stat"><b>11</b><span>讨论回复</span></div>
+      <div class="stat"><b>1</b><span>已解决反馈</span></div>
+    </div>
+  </section>
+
+  <main>
+    <h2 class="sec">脚本列表
+      <span class="filters">
+        <button class="chip active" type="button">全部</button>
+        <button class="chip" type="button">自写</button>
+        <button class="chip" type="button">同步</button>
+      </span>
+    </h2>
+
+    <article class="script-card">
+      <div class="sc-main">
+        <div class="sc-title">
+          <h3>我的去广告脚本</h3>
+          <span class="pill type-self">自写</span>
+          <span class="pill ver">v1.0.0</span>
+          <span class="status"><span class="dot" aria-hidden="true"></span>启用</span>
+        </div>
+        <p class="sc-desc">移除百度首页和搜索结果广告，支持信息流与推广链接过滤。</p>
+        <p class="sc-meta"><code>www.baidu.com</code> · 更新于 2026-08-20</p>
+      </div>
+      <div class="sc-disc">
+        <div class="disc-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          讨论
+          <span class="badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>已解决</span>
+          <span class="badge plain">8 条回复</span>
+        </div>
+        <p class="disc-latest">“已修复，更新到 v1.0.1 即可。”
+          <span class="disc-who">仓库所有者 · 3 小时前</span>
+        </p>
+      </div>
+      <div class="sc-actions">
+        <a class="btn primary" href="#">安装</a>
+        <a class="btn ghost" href="#">详情</a>
+        <a class="btn ghost" href="#">讨论</a>
+      </div>
+    </article>
+
+    <article class="script-card">
+      <div class="sc-main">
+        <div class="sc-title">
+          <h3>Bilibili 清爽增强</h3>
+          <span class="pill type-sync">同步 · GreasyFork</span>
+          <span class="pill ver">v2.3.1</span>
+          <span class="status"><span class="dot" aria-hidden="true"></span>启用</span>
+        </div>
+        <p class="sc-desc">隐藏推荐位与浮层广告，还原干净的观看页面。</p>
+        <p class="sc-meta"><code>www.bilibili.com</code> · 同步于 2026-09-28</p>
+      </div>
+      <div class="sc-disc">
+        <div class="disc-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          讨论
+          <span class="badge plain">3 条回复 · 待解决</span>
+        </div>
+        <p class="disc-latest">“能加个开关隐藏推荐位吗？”
+          <span class="disc-who">访客 · 昨天</span>
+        </p>
+      </div>
+      <div class="sc-actions">
+        <a class="btn primary" href="#">安装</a>
+        <a class="btn ghost" href="#">详情</a>
+        <a class="btn ghost" href="#">讨论</a>
+      </div>
+    </article>
+
+    <article class="script-card">
+      <div class="sc-main">
+        <div class="sc-title">
+          <h3>暗色模式助手</h3>
+          <span class="pill type-self">自写</span>
+          <span class="pill ver">v1.2.0</span>
+          <span class="status off"><span class="dot" aria-hidden="true"></span>已禁用</span>
+        </div>
+        <p class="sc-desc">为任意网站强制启用暗色配色，支持排除规则。</p>
+        <p class="sc-meta"><code>*://*/*</code> · 更新于 2026-07-12</p>
+      </div>
+      <div class="sc-disc">
+        <div class="disc-head">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          讨论
+        </div>
+        <p class="disc-empty"><span>还没有讨论</span><a href="#">发起讨论 →</a></p>
+      </div>
+      <div class="sc-actions">
+        <a class="btn primary" href="#">安装</a>
+        <a class="btn ghost" href="#">详情</a>
+        <a class="btn ghost" href="#">讨论</a>
+      </div>
+    </article>
+
+    <h2 class="sec">脚本详情 · 我的去广告脚本</h2>
+    <article class="detail-card">
+      <div class="d-head">
+        <div>
+          <h3>我的去广告脚本</h3>
+          <div class="d-pills">
+            <span class="pill type-self">自写</span>
+            <span class="pill ver">v1.0.0</span>
+            <span class="status"><span class="dot" aria-hidden="true"></span>启用</span>
+          </div>
+        </div>
+        <a class="btn primary big" href="#">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          安装脚本
+        </a>
+      </div>
+      <div class="d-meta">
+        <span><i>作者</i>Your Name</span>
+        <span><i>匹配</i><code>www.baidu.com</code></span>
+        <span><i>更新</i>2026-08-20</span>
+        <span><i>下载</i><code>@downloadURL</code> 已配置</span>
+      </div>
+      <div class="d-doc">
+        <h4>文档</h4>
+        <p>安装后自动生效，无需配置。移除首页右侧广告、搜索结果推广链接与信息流广告；遇新样式可到下方讨论区反馈选择器。</p>
+      </div>
+      <div class="d-disc">
+        <div class="disc-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          讨论区
+          <span class="badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>已解决</span>
+          <span class="badge plain">8 条回复</span>
+          <span class="grow"></span>
+          <a href="#">在 GitHub 打开 ↗</a>
+        </div>
+        <div class="cmt">
+          <b>访客</b><time>2 天前</time>
+          <p>百度首页右侧还有广告没去掉，是新样式吗？</p>
+        </div>
+        <div class="cmt owner">
+          <b>ACG-Q</b><time>3 小时前</time>
+          <p>已修复，更新到 v1.0.1 即可。感谢反馈！</p>
+        </div>
+        <a class="btn primary" href="#">参与讨论</a>
+      </div>
+    </article>
+  </main>
+
+  <footer class="foot">
+    <span>由 ACG-Q/userscript-manager 自动生成</span>
+    <a href="#">管理入口 · Issue #1</a>
+    <a href="#">GitHub 仓库</a>
+  </footer>
+</div>
+
+<button type="button" class="theme-rail" id="themeRail" aria-expanded="false" aria-controls="settingsDrawer" aria-label="打开设置">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1f2328" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  <span class="rail-text">设置</span>
+</button>
+
+<div class="sd-overlay" id="sdOverlay"></div>
+
+<aside class="settings-drawer" id="settingsDrawer" aria-hidden="true" aria-label="设置面板">
+  <div class="sd-head">
+    <h3>设置</h3>
+    <button type="button" class="sd-close" aria-label="关闭设置">&times;</button>
+  </div>
+  <div class="sd-group">
+    <h4>主题</h4>
+    <ul class="theme-list">
+      <li><button type="button" data-theme="a" aria-pressed="true">
+        <span class="tl-preview pv-a" aria-hidden="true">
+          <span class="pv-bar"><i class="pv-brand"></i><i class="pv-link"></i><i class="pv-link"></i><i class="pv-pill"></i></span>
+          <span class="pv-hero"><i class="pv-title"></i><i class="pv-sub"></i><span class="pv-stats"><i></i><i></i><i></i></span></span>
+          <span class="pv-body"><i class="pv-card"></i><i class="pv-card"></i></span>
+        </span>
+        <span class="tl-label"><span class="swatch swatch-a" aria-hidden="true"></span>清爽蓝<span class="check" aria-hidden="true">✓</span></span>
+      </button></li>
+      <li><button type="button" data-theme="b" aria-pressed="false">
+        <span class="tl-preview pv-b" aria-hidden="true">
+          <span class="pv-bar"><i class="pv-brand"></i><i class="pv-link"></i><i class="pv-link"></i><i class="pv-pill"></i></span>
+          <span class="pv-hero"><i class="pv-title"></i><i class="pv-sub"></i><span class="pv-stats"><i></i><i></i><i></i></span></span>
+          <span class="pv-body"><i class="pv-card"></i><i class="pv-card"></i></span>
+        </span>
+        <span class="tl-label"><span class="swatch swatch-b" aria-hidden="true"></span>硬核绿<span class="check" aria-hidden="true">✓</span></span>
+      </button></li>
+      <li><button type="button" data-theme="c" aria-pressed="false">
+        <span class="tl-preview pv-c" aria-hidden="true">
+          <span class="pv-bar"><i class="pv-brand"></i><i class="pv-link"></i><i class="pv-link"></i><i class="pv-pill"></i></span>
+          <span class="pv-hero"><i class="pv-title"></i><i class="pv-sub"></i><span class="pv-stats"><i></i><i></i><i></i></span></span>
+          <span class="pv-body"><i class="pv-card"></i><i class="pv-card"></i></span>
+        </span>
+        <span class="tl-label"><span class="swatch swatch-c" aria-hidden="true"></span>表达紫<span class="check" aria-hidden="true">✓</span></span>
+      </button></li>
+    </ul>
+  </div>
+  <div class="sd-group">
+    <h4>更多功能</h4>
+    <p class="sd-soon">规划中</p>
+  </div>
+</aside>
+
+<script>
+  const mock = document.getElementById('mock');
+  const themeButtons = document.querySelectorAll('button[data-theme]');
+
+  function applyTheme(theme) {
+    mock.className = 'mock theme-' + theme;
+    themeButtons.forEach(b =>
+      b.setAttribute('aria-pressed', String(b.dataset.theme === theme)));
+  }
+
+  themeButtons.forEach(btn => {
+    btn.addEventListener('click', () => applyTheme(btn.dataset.theme));
+  });
+
+  const rail = document.getElementById('themeRail');
+  const drawer = document.getElementById('settingsDrawer');
+  const overlay = document.getElementById('sdOverlay');
+  const closeBtn = document.querySelector('.sd-close');
+
+  function setDrawer(open) {
+    drawer.classList.toggle('open', open);
+    overlay.classList.toggle('open', open);
+    rail.setAttribute('aria-expanded', String(open));
+    drawer.setAttribute('aria-hidden', String(!open));
+    if (open) drawer.querySelector('.theme-list button').focus();
+    else rail.focus();
+  }
+
+  rail.addEventListener('click', () => setDrawer(!drawer.classList.contains('open')));
+  overlay.addEventListener('click', () => setDrawer(false));
+  closeBtn.addEventListener('click', () => setDrawer(false));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) setDrawer(false);
+  });
+</script>
+</body>
+</html>

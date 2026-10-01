@@ -9,8 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 import requests
 
 from userscript_manager.registry import load_registry, save_registry
-from userscript_manager.discussion_page import (
-    build_discussion_body, build_title, script_id_from_body,
+from userscript_manager.issue_page import (
+    build_issue_body, build_title, script_id_from_body,
     tombstone_body, tombstone_title,
 )
 
@@ -131,7 +131,7 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
                 "repositoryId": repo["id"],
                 "categoryId": category_id,
                 "title": build_title(script),
-                "body": build_discussion_body(script),
+                "body": build_issue_body(script),
             })["createDiscussion"]["discussion"]
             script["discussion"] = {"number": created["number"], "node_id": created["id"], "url": created["url"]}
             dirty = True
@@ -139,7 +139,7 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
             continue
 
         expected_title = build_title(script)
-        expected_body = build_discussion_body(script)
+        expected_body = build_issue_body(script)
         if target["title"] != expected_title or target["body"] != expected_body:
             client.execute(UPDATE_MUTATION, {
                 "discussionId": target["id"],

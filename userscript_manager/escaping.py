@@ -1,4 +1,4 @@
-"""所有投影面（Discussion 正文、Pages HTML）共用的转义工具。"""
+"""所有投影面（Issue 正文、Pages HTML）共用的转义工具。"""
 import html
 
 

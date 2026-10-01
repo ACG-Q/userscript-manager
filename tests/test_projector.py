@@ -16,7 +16,7 @@ CONFIG["github_pages"]["base_url"] = ""
 CONFIG["github_repo"] = "testuser/testrepo"
 
 from userscript_manager.registry import load_registry, save_registry
-from userscript_manager.discussion_page import build_discussion_body, build_marker, build_title
+from userscript_manager.issue_page import build_issue_body, build_marker, build_title
 from project_discussions import project, list_all_discussions
 
 
@@ -81,7 +81,7 @@ class TestProjector(unittest.TestCase):
     def test_noop_when_body_already_in_sync(self):
         script = make_script(discussion={"number": 1, "node_id": "D_1", "url": "u1"})
         client = FakeClient(discussions=[{"id": "D_1", "number": 1,
-            "title": build_title(script), "body": build_discussion_body(script), "url": "u1"}])
+            "title": build_title(script), "body": build_issue_body(script), "url": "u1"}])
         project(client, {"scripts": [script]}, "o", "r")
         self.assertEqual(client.creates, [])
         self.assertEqual(client.updates, [])
@@ -93,7 +93,7 @@ class TestProjector(unittest.TestCase):
         project(client, {"scripts": [script]}, "o", "r")
         self.assertEqual(len(client.updates), 1)
         self.assertEqual(client.updates[0]["discussionId"], "D_1")
-        self.assertEqual(client.updates[0]["body"], build_discussion_body(script))
+        self.assertEqual(client.updates[0]["body"], build_issue_body(script))
         self.assertEqual(client.updates[0]["title"], build_title(script))
 
     def test_backfill_tracking_from_marker(self):

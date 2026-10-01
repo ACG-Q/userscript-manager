@@ -1,4 +1,4 @@
-"""脚本 Discussion 页正文的唯一生成器：全量、幂等、可对账。"""
+"""脚本 Issue 正文的唯一生成器：全量、幂等、可对账。"""
 import re
 
 from .config import get_install_url
@@ -28,7 +28,7 @@ def tombstone_body(name: str) -> str:
     return f"> ⚠️ 脚本 `{escape_md_cell(name)}` 已从仓库删除。本页保留历史讨论，不再更新。\n"
 
 
-def build_discussion_body(script: dict) -> str:
+def build_issue_body(script: dict) -> str:
     sid = script["id"]
     name = escape_md_cell(script.get("name", sid))
     version = escape_md_cell(script.get("version", ""))
