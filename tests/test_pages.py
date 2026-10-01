@@ -392,5 +392,29 @@ class TestThemeTokensFilled(unittest.TestCase):
             self.assertIn(ref, COMPONENT_CSS)
 
 
+class TestThemeDrawerMarkup(unittest.TestCase):
+    def test_index_and_detail_contain_rail_and_drawer(self):
+        for html in (build_index({"scripts": []}), build_detail(make_script())):
+            self.assertIn('id="themeRail"', html)
+            self.assertIn('id="settingsDrawer"', html)
+            self.assertIn('id="sdOverlay"', html)
+
+    def test_drawer_has_three_theme_rows_with_preview(self):
+        html = build_index({"scripts": []})
+        for theme in ("github-light", "terminal-dark", "vivid-purple"):
+            self.assertIn(f'data-theme="{theme}"', html)
+        for pv in ("pv-a", "pv-b", "pv-c", "tl-label", "tl-preview", "sd-soon"):
+            self.assertIn(pv, html)
+
+    def test_drawer_styles_present(self):
+        from build_pages import COMPONENT_CSS, PREVIEW_CSS
+        for cls in (".theme-rail", ".settings-drawer", ".theme-list",
+                    ".tl-preview", ".swatch", ".check"):
+            self.assertIn(cls, COMPONENT_CSS)
+        self.assertIn("grid-template-columns: repeat(2, 1fr)", COMPONENT_CSS)
+        for cls in (".pv-a", ".pv-b", ".pv-c", ".swatch-a", ".swatch-b", ".swatch-c"):
+            self.assertIn(cls, PREVIEW_CSS)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -257,13 +257,126 @@ footer.foot a { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+.theme-rail { position: fixed; right: 0; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 7px; background: var(--bg); border: 1px solid var(--border); border-right: none; border-radius: 8px 0 0 8px; cursor: pointer; z-index: 60; color: var(--text); transition: background .15s ease; }
+.theme-rail:hover { background: var(--bg-subtle); }
+.theme-rail:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.rail-text { writing-mode: vertical-rl; font-size: 13px; font-weight: 600; letter-spacing: 3px; }
+.sd-overlay { position: fixed; inset: 0; background: rgba(14, 17, 22, .4); opacity: 0; visibility: hidden; transition: opacity .2s ease, visibility .2s; z-index: 70; }
+.sd-overlay.open { opacity: 1; visibility: visible; }
+.settings-drawer { position: fixed; top: 0; right: 0; height: 100%; width: 340px; box-sizing: border-box; padding: 20px; background: var(--bg); border-left: 1px solid var(--border); box-shadow: -8px 0 30px rgba(0, 0, 0, .12); transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility .2s; z-index: 80; overflow-y: auto; }
+.settings-drawer.open { transform: translateX(0); visibility: visible; }
+.sd-head { display: flex; align-items: center; justify-content: space-between; }
+.sd-head h3 { margin: 0; font-size: 16px; color: var(--text); }
+.sd-close { border: none; background: transparent; font-size: 20px; line-height: 1; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: var(--text-muted); }
+.sd-close:hover { background: var(--neutral-bg); }
+.sd-group h4 { margin: 18px 0 8px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.sd-soon { margin: 0; font-size: 13px; color: var(--text-muted); opacity: .75; }
+.theme-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.theme-list button { display: flex; flex-direction: column; width: 100%; padding: 0; overflow: hidden; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); font-size: 14px; font-family: inherit; color: var(--text); cursor: pointer; text-align: left; transition: background .15s ease, border-color .15s ease; }
+.theme-list button:hover { background: var(--bg-subtle); }
+.theme-list button[aria-pressed="true"] { border-color: var(--text); background: var(--bg-subtle); }
+.tl-label { display: flex; align-items: center; gap: 10px; padding: 8px 12px; font-weight: 400; }
+.theme-list button[aria-pressed="true"] .tl-label { font-weight: 600; }
+.tl-preview { display: flex; flex-direction: column; border-bottom: 1px solid var(--pv-card-bd); }
+.tl-preview .pv-bar { padding: 5px 8px; }
+.tl-preview .pv-brand { width: 28px; height: 6px; }
+.tl-preview .pv-link { width: 12px; height: 4px; }
+.tl-preview .pv-pill { width: 24px; height: 9px; }
+.tl-preview .pv-hero { padding: 6px 8px 7px; }
+.tl-preview .pv-title { height: 7px; }
+.tl-preview .pv-sub { height: 4px; margin-top: 4px; }
+.tl-preview .pv-stats { margin-top: 5px; }
+.tl-preview .pv-stats i { height: 13px; border-radius: 4px; }
+.tl-preview .pv-body { padding: 5px 8px 6px; }
+.tl-preview .pv-card { height: 16px; border-radius: 4px; }
+.pv-bar { display: flex; align-items: center; gap: 6px; padding: 7px 9px; background: var(--pv-bar-bg); border-bottom: 1px solid var(--pv-bar-bd); }
+.pv-brand { width: 34px; height: 7px; border-radius: 4px; background: var(--pv-bar-fg); }
+.pv-link { width: 16px; height: 5px; border-radius: 3px; background: var(--pv-sub); opacity: .7; }
+.pv-pill { margin-left: auto; width: 30px; height: 11px; border-radius: 999px; background: var(--pv-accent); }
+.pv-hero { display: block; padding: 9px 10px 10px; background: var(--pv-hero-bg); }
+.pv-title { display: block; width: 58%; height: 9px; border-radius: 4px; background: var(--pv-title); }
+.pv-sub { display: block; width: 80%; height: 5px; border-radius: 3px; background: var(--pv-sub); margin-top: 6px; }
+.pv-stats { display: flex; gap: 5px; margin-top: 8px; }
+.pv-stats i { flex: 1; height: 20px; border-radius: 5px; background: var(--pv-stat-bg); border: 1px solid var(--pv-stat-bd); }
+.pv-body { display: flex; gap: 5px; padding: 8px 10px 10px; background: var(--pv-body-bg); }
+.pv-card { flex: 1; height: 26px; border-radius: 6px; background: var(--pv-card-bg); border: 1px solid var(--pv-card-bd); }
+.swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, .15); flex: none; }
+.check { margin-left: auto; font-weight: 700; visibility: hidden; }
+.theme-list button[aria-pressed="true"] .check { visibility: visible; }
 """
 
-PAGE_STYLE = TOKEN_CSS + COMPONENT_CSS
+PREVIEW_CSS = """
+.pv-a { --pv-bar-bg: #fff; --pv-bar-bd: #d8dee4; --pv-bar-fg: #0969da; --pv-hero-bg: #f6f8fa; --pv-title: #1f2328; --pv-sub: #8c959f; --pv-stat-bg: #fff; --pv-stat-bd: #d8dee4; --pv-accent: #0969da; --pv-body-bg: #fff; --pv-card-bg: #fff; --pv-card-bd: #d8dee4; }
+.pv-b { --pv-bar-bg: #0b0e0c; --pv-bar-bd: #2c302c; --pv-bar-fg: #3fb950; --pv-hero-bg: #0b0e0c; --pv-title: #eef1ef; --pv-sub: #898f8a; --pv-stat-bg: #191f1a; --pv-stat-bd: #2c302c; --pv-accent: #3fb950; --pv-body-bg: #101411; --pv-card-bg: #191f1a; --pv-card-bd: #2c302c; }
+.pv-c { --pv-bar-bg: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); --pv-bar-bd: transparent; --pv-bar-fg: #fff; --pv-hero-bg: linear-gradient(135deg, #6e56cf, #8b5cf6 55%, #a855f7); --pv-title: #fff; --pv-sub: #e9e4ff; --pv-stat-bg: rgba(255, 255, 255, .13); --pv-stat-bd: rgba(255, 255, 255, .33); --pv-accent: #6e56cf; --pv-body-bg: #faf9ff; --pv-card-bg: #fff; --pv-card-bd: #ece8f8; }
+.swatch-a { background: #0969da; }
+.swatch-b { background: #3fb950; }
+.swatch-c { background: #8b5cf6; }
+"""
+
+PAGE_STYLE = TOKEN_CSS + COMPONENT_CSS + PREVIEW_CSS
 
 
 def render_markdown(text: str) -> str:
     return md.markdown(text or "", extensions=["fenced_code", "tables"])
+
+
+def _theme_row(theme: str, label: str, suffix: str) -> str:
+    return (
+        f'<li><button type="button" data-theme="{theme}" aria-pressed="false">'
+        f'<span class="tl-preview pv-{suffix}" aria-hidden="true">'
+        '<span class="pv-bar"><i class="pv-brand"></i><i class="pv-link"></i>'
+        '<i class="pv-link"></i><i class="pv-pill"></i></span>'
+        '<span class="pv-hero"><i class="pv-title"></i><i class="pv-sub"></i>'
+        '<span class="pv-stats"><i></i><i></i><i></i></span></span>'
+        '<span class="pv-body"><i class="pv-card"></i><i class="pv-card"></i></span>'
+        "</span>"
+        f'<span class="tl-label"><span class="swatch swatch-{suffix}" '
+        f'aria-hidden="true"></span>{label}'
+        '<span class="check" aria-hidden="true">✓</span></span>'
+        "</button></li>"
+    )
+
+
+GEAR_ICON = (
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" '
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+    'stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/>'
+    '<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83'
+    "l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0"
+    "v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83"
+    "-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4"
+    "h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83"
+    "-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0"
+    "v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 "
+    "2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 "
+    '4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+)
+
+THEME_MARKUP = f"""<button type="button" class="theme-rail" id="themeRail" aria-expanded="false" aria-controls="settingsDrawer" aria-label="打开设置">
+{GEAR_ICON}
+<span class="rail-text">设置</span>
+</button>
+<div class="sd-overlay" id="sdOverlay"></div>
+<aside class="settings-drawer" id="settingsDrawer" aria-hidden="true" aria-label="设置面板">
+<div class="sd-head">
+<h3>设置</h3>
+<button type="button" class="sd-close" aria-label="关闭设置">&times;</button>
+</div>
+<div class="sd-group">
+<h4>主题</h4>
+<ul class="theme-list">
+{_theme_row("github-light", "清爽蓝", "a")}
+{_theme_row("terminal-dark", "硬核绿", "b")}
+{_theme_row("vivid-purple", "表达紫", "c")}
+</ul>
+</div>
+<div class="sd-group">
+<h4>更多功能</h4>
+<p class="sd-soon">规划中</p>
+</div>
+</aside>
+"""
 
 
 def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index.html") -> str:
@@ -294,6 +407,7 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 </footer>
 </div>
 {extra_js}
+{THEME_MARKUP}
 </body>
 </html>"""
 
