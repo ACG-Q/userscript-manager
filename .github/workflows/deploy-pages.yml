@@ -3,12 +3,17 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
+  discussion:
+    types: [created, edited, deleted, answered, unanswered]
+  discussion_comment:
+    types: [created, edited, deleted]
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+  discussions: read
 
 concurrency:
   group: "pages"
@@ -33,6 +38,8 @@ jobs:
 
       - name: Build site
         run: python build_pages.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Stage site structure
         run: |
