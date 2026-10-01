@@ -81,8 +81,10 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           DISCUSSION_CATEGORY: ${{ vars.DISCUSSION_CATEGORY }}
         run: |
-          if ! python project_discussions.py; then
-            echo "⚠️ Discussion 投影失败（真源已保存，下次执行命令时自动重试对账）" >> command_result.txt
+          if PROJ_OUT=$(python project_discussions.py 2>&1); then
+            echo "$PROJ_OUT"
+          else
+            printf '\n⚠️ Discussion 投影失败（真源已保存，下次执行命令时自动重试对账）\n%s\n' "$PROJ_OUT" >> command_result.txt
           fi
 
       - name: Commit changes
