@@ -4,31 +4,38 @@
       "id": "d1620a7a-ae3b-4817-ae2b-016f48cf81a1",
       "type": "self",
       "name": "我的去广告脚本",
-      "version": "1.0.0",
-      "description": "",
-      "author": "Your Name",
-      "namespace": "https://your-namespace.com",
+      "version": "1.0.1",
+      "description": "移除百度首页和搜索结果广告，支持信息流与推广链接过滤",
+      "author": "ACG-Q",
+      "namespace": "https://github.com/ACG-Q/userscript-manager",
       "match": [
-        "*://*/*"
+        "*://www.baidu.com/*"
       ],
       "grant": [
         "none"
       ],
       "enabled": true,
       "created_at": "2026-08-20T14:18:57.696055Z",
-      "updated_at": "2026-08-20T14:18:57.696068Z",
+      "updated_at": "2026-10-01T11:01:11.503362Z",
       "source_url": null,
       "source_type": null,
       "last_synced_at": null,
       "sync_enabled": false,
       "custom_match": null,
-      "documentation": "# 我的去广告脚本\n\n```javascript\n// ==UserScript==\n// @name 我的去广告脚本\n// @version 1.0.0\n// @match *://*/*\n// @grant none\n// ==/UserScript==\n(function() { console.log('Hello'); })();\n```\n\n## 使用说明\n\n这里是测试功能",
+      "documentation": "# 我的去广告脚本\n\n移除百度首页和搜索结果广告，支持信息流与推广链接过滤。\n\n## 功能\n- 首页右侧广告位\n- 搜索结果推广链接\n- 信息流广告卡片\n\n```javascript\n// ==UserScript==\n// @name         我的去广告脚本\n// @namespace    https://github.com/ACG-Q/userscript-manager\n// @version      1.0.1\n// @description  移除百度首页和搜索结果广告，支持信息流与推广链接过滤\n// @author       ACG-Q\n// @match        *://www.baidu.com/*\n// @grant        none\n// ==/UserScript==\n(function () {\n  'use strict';\n  const kill = () => document.querySelectorAll('#content_right, .ec_tuiguang_pannel').forEach(el => el.remove());\n  kill();\n\n  kill();\n  new MutationObserver(kill).observe(document.body, { childList: true, subtree: true });\n})();\n```",
       "doc_path": "self/d1620a7a-ae3b-4817-ae2b-016f48cf81a1/README.md",
       "discussion": {
         "number": 2,
         "node_id": "D_kwDOU2Q-Qc4AprV7",
         "url": "https://github.com/ACG-Q/userscript-manager/discussions/2"
-      }
+      },
+      "changelog": [
+        {
+          "version": "1.0.1",
+          "date": "2026-10-01",
+          "note": "手动更新"
+        }
+      ]
     }
   ]
 }
