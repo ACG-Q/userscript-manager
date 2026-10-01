@@ -356,5 +356,41 @@ class TestThemeTokens(unittest.TestCase):
         self.assertIn("管理入口", html)
 
 
+class TestThemeTokensFilled(unittest.TestCase):
+    def _block(self, name):
+        from build_pages import TOKEN_CSS
+        start = TOKEN_CSS.index(f'[data-theme="{name}"]')
+        end = TOKEN_CSS.index("}", start)
+        return TOKEN_CSS[start:end]
+
+    def test_terminal_dark_block_fills_all_key_tokens(self):
+        block = self._block("terminal-dark")
+        self.assertNotIn("预留", block)
+        for tok in ("--brand:", "--brand-hover:", "--primary:", "--bg:", "--bg-subtle:",
+                    "--page-bg:", "--text:", "--text-muted:", "--border:", "--success:",
+                    "--danger:", "--info-bg:", "--warn-bg:", "--neutral-bg:",
+                    "--tip-bg:", "--hero-bg:", "--hero-fg:", "--hero-sub:", "--on-accent:"):
+            self.assertIn(tok, block)
+
+    def test_vivid_purple_block_fills_all_key_tokens(self):
+        block = self._block("vivid-purple")
+        self.assertNotIn("预留", block)
+        for tok in ("--brand: #6e56cf", "--primary: linear-gradient", "--page-bg:",
+                    "--text:", "--border:", "--tip-bg:", "--hero-bg: linear-gradient",
+                    "--hero-fg: #fff", "--on-accent:"):
+            self.assertIn(tok, block)
+
+    def test_root_defines_new_tokens(self):
+        from build_pages import TOKEN_CSS
+        for tok in ("--hero-bg: #f6f8fa", "--hero-fg: #1f2328",
+                    "--hero-sub: #57606a", "--on-accent: #fff"):
+            self.assertIn(tok, TOKEN_CSS)
+
+    def test_component_layer_uses_new_tokens(self):
+        from build_pages import COMPONENT_CSS
+        for ref in ("var(--hero-bg)", "var(--hero-fg)", "var(--hero-sub)", "var(--on-accent)"):
+            self.assertIn(ref, COMPONENT_CSS)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
