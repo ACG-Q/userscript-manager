@@ -50,7 +50,7 @@
 
 自写脚本的 `/add` 和 `/up` 支持完整 Markdown：
 
-```markdown
+````markdown
 # 脚本标题
 
 脚本描述...
@@ -67,9 +67,9 @@
 // ==/UserScript==
 (function() { ... })();
 ```
-```
+````
 
-- **代码块**（```javascript）提取为脚本代码
+- **代码块**（`javascript`）提取为脚本代码
 - **其余内容**保存为 `README.md` 文档
 - **油猴头部**（@name 等）自动解析为元数据
 

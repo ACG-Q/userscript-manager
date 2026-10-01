@@ -39,7 +39,7 @@
 
 ### 示例 1：添加自写脚本（带完整文档）
 
-```
+````
 /add
 # 百度去广告脚本
 
@@ -80,11 +80,11 @@
     new MutationObserver(removeAds).observe(document.body, { childList: true, subtree: true });
 })();
 ```
-```
+````
 
 ### 示例 2：添加简单自写脚本（无文档）
 
-```
+````
 /add
 ```javascript
 // ==UserScript==
@@ -95,7 +95,7 @@
 // ==/UserScript==
 console.log('Hello World');
 ```
-```
+````
 
 ### 示例 3：从 GreasyFork 同步
 

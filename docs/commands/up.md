@@ -20,7 +20,7 @@
 
 ### 示例 1：更新代码和文档
 
-```
+````
 /up f9076f78-e878-4095-b53c-71d63e7ff556
 # 百度去广告脚本 v2
 
@@ -58,11 +58,11 @@
     new MutationObserver(removeAds).observe(document.body, { childList: true, subtree: true });
 })();
 ```
-```
+````
 
 ### 示例 2：仅更新代码（保留原文档）
 
-```
+````
 /up f9076f78-e878-4095-b53c-71d63e7ff556
 ```javascript
 // ==UserScript==
@@ -73,7 +73,7 @@
 // ==/UserScript==
 console.log('Updated');
 ```
-```
+````
 
 ## 输出示例
 
