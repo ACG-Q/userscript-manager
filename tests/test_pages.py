@@ -120,6 +120,38 @@ class TestIndexPanels(unittest.TestCase):
         self.assertIn("暂无脚本", html)
 
 
+class TestDetailPanels(unittest.TestCase):
+    def test_no_discussion_empty_state(self):
+        html = build_detail(make_script(discussion=None), make_stats())
+        self.assertIn("还没有讨论", html)
+        self.assertIn("testuser/testrepo/discussions", html)
+        self.assertNotIn("摘要暂不可用", html)
+
+    def test_degraded_panel_keeps_github_link(self):
+        html = build_detail(make_script())
+        self.assertIn("摘要暂不可用", html)
+        self.assertIn("https://github.com/t/r/discussions/4", html)
+        self.assertNotIn('<div class="cmt', html)
+
+    def test_stats_panel_shows_badges_and_comments(self):
+        html = build_detail(make_script(), make_stats())
+        self.assertIn("已解决", html)
+        self.assertIn("8 条回复", html)
+        self.assertIn('<div class="cmt owner">', html)
+        self.assertIn("已修复，更新到 v1.0.1 即可。", html)
+        self.assertIn("<time>", html)
+        self.assertIn("https://github.com/t/r/discussions/4", html)
+
+    def test_stats_unanswered_zero_replies(self):
+        html = build_detail(
+            make_script(),
+            make_stats(answered=False, count=0, replies=()),
+        )
+        self.assertNotIn('<span class="badge">', html)
+        self.assertIn("0 条回复", html)
+        self.assertIn("还没有回复", html)
+
+
 class TestThemeTokens(unittest.TestCase):
     def test_html_declares_default_theme(self):
         html = build_index({"scripts": []})

@@ -340,25 +340,64 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
     return page(BRAND, body, extra_js=FILTER_JS)
 
 
-def build_detail(script: dict) -> str:
+def detail_discussion_panel(script: dict, stats) -> str:
+    url = (script.get("discussion") or {}).get("url")
+    if not url:
+        return (
+            '<section class="d-disc"><div class="disc-head">'
+            f'{ICON_COMMENT}讨论</div>'
+            f'<p class="disc-empty"><span>还没有讨论</span>'
+            f'<a href="{escape_html(discussions_list_url())}">发起讨论 →</a>'
+            "</p></section>"
+        )
+    if stats is None:
+        return (
+            '<section class="d-disc"><div class="disc-head">'
+            f'{ICON_COMMENT}讨论</div>'
+            f'<p class="disc-empty"><span>摘要暂不可用</span>'
+            f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>'
+            "</p></section>"
+        )
+    head = (
+        f'<div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
+        f'<span class="grow"></span>'
+        f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></div>'
+    )
+    if stats.replies:
+        comments = "".join(
+            f'<div class="cmt{" owner" if r.is_owner else ""}">'
+            f"<b>{escape_html(r.author)}</b>"
+            f"<time>{escape_html(relative_time(r.created_at))}</time>"
+            f"<p>{escape_html(clip(r.body, 400))}</p></div>"
+            for r in stats.replies
+        )
+    else:
+        comments = '<p class="disc-empty"><span>还没有回复</span></p>'
+    return f'<section class="d-disc">{head}{comments}</section>'
+
+
+def build_detail(script: dict, stats=None) -> str:
     name = escape_html(script.get("name", script["id"]))
     version = escape_html(script.get("version", ""))
     author = escape_html(script.get("author", "") or "-")
     description = escape_html(script.get("description", ""))
-    matches = "<br>".join(f"<code>{escape_html(m)}</code>" for m in script.get("match") or [])
+    matches = " ".join(f"<code>{escape_html(m)}</code>" for m in script.get("match") or [])
     install_url = escape_html(get_install_url(script["id"]))
 
-    extra = ""
-    discussion_url = (script.get("discussion") or {}).get("url")
-    if discussion_url:
-        extra = f' · <a href="{escape_html(discussion_url)}">讨论与反馈</a>'
+    if script["type"] == "self":
+        type_html = '<span class="pill type-self">自写</span>'
+    else:
+        source = escape_html(script.get("source_type") or "")
+        type_html = f'<span class="pill type-sync">同步 · {source}</span>' if source \
+            else '<span class="pill type-sync">同步</span>'
+    enabled = script.get("enabled", True)
+    status_cls = "" if enabled else " off"
+    status_text = "启用" if enabled else "已禁用"
+    version_html = f'<span class="pill ver">v{version}</span>' if version else ""
+    when = (script.get("updated_at") or script.get("last_synced_at") or "")[:10]
+    when_html = f"<span><i>更新</i>{escape_html(when)}</span>" if when else ""
+    desc_html = f'<p class="sc-desc">{description}</p>' if description else ""
 
-    rows = [
-        ("<tr><th>版本</th><td>" + version + "</td></tr>"),
-        ("<tr><th>作者</th><td>" + author + "</td></tr>"),
-        ("<tr><th>匹配规则</th><td>" + (matches or "-") + "</td></tr>"),
-        ("<tr><th>描述</th><td>" + (description or "-") + "</td></tr>"),
-    ]
     changelog = script.get("changelog") or []
     if changelog:
         ch_rows = "".join(
@@ -374,13 +413,27 @@ def build_detail(script: dict) -> str:
     else:
         changelog_html = "<p>暂无更新记录。</p>"
 
-    body = f"""<h1>{name}</h1>
-<p><a class="install" href="{install_url}">安装脚本</a>{extra}</p>
-<table><tbody>{''.join(rows)}</tbody></table>
-<h2>文档</h2>
+    body = f"""<main>
+<section class="detail-card">
+<div class="d-head">
+<div>
+<div class="d-pills">{type_html}{version_html}<span class="status{status_cls}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
+<h3>{name}</h3>
+</div>
+<a class="btn primary" href="{install_url}">安装脚本</a>
+</div>
+<div class="d-meta"><span><i>作者</i>{author}</span>{when_html}<span><i>匹配规则</i>{matches or "-"}</span></div>
+{desc_html}
+<section class="d-doc">
 {render_markdown(script.get("documentation") or "_暂无文档_")}
+</section>
+{detail_discussion_panel(script, stats)}
+<section class="d-doc">
 <h2>更新历史</h2>
-{changelog_html}"""
+{changelog_html}
+</section>
+</section>
+</main>"""
     return page(script.get("name", script["id"]), body)
 
 
