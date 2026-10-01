@@ -379,6 +379,54 @@ THEME_MARKUP = f"""<button type="button" class="theme-rail" id="themeRail" aria-
 """
 
 
+THEME_JS = """<script>
+(function () {
+  var KEY = 'asm-theme';
+  var root = document.documentElement;
+  var rail = document.getElementById('themeRail');
+  var drawer = document.getElementById('settingsDrawer');
+  var overlay = document.getElementById('sdOverlay');
+  var closeBtn = drawer.querySelector('.sd-close');
+  var rows = drawer.querySelectorAll('.theme-list button[data-theme]');
+
+  function applyTheme(theme) {
+    root.setAttribute('data-theme', theme);
+    rows.forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b.dataset.theme === theme));
+    });
+    try {
+      localStorage.setItem(KEY, theme);
+    } catch (e) {
+      console.warn('无法保存主题偏好', e);
+    }
+  }
+
+  rows.forEach(function (b) {
+    b.setAttribute('aria-pressed', String(b.dataset.theme === root.getAttribute('data-theme')));
+    b.addEventListener('click', function () { applyTheme(b.dataset.theme); });
+  });
+
+  function setDrawer(open) {
+    drawer.classList.toggle('open', open);
+    overlay.classList.toggle('open', open);
+    rail.setAttribute('aria-expanded', String(open));
+    drawer.setAttribute('aria-hidden', String(!open));
+    if (open) drawer.querySelector('.theme-list button').focus();
+    else rail.focus();
+  }
+
+  rail.addEventListener('click', function () {
+    setDrawer(!drawer.classList.contains('open'));
+  });
+  overlay.addEventListener('click', function () { setDrawer(false); });
+  closeBtn.addEventListener('click', function () { setDrawer(false); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && drawer.classList.contains('open')) setDrawer(false);
+  });
+})();
+</script>"""
+
+
 def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index.html") -> str:
     repo = escape_html(CONFIG["github_repo"])
     issue = CONFIG["control_issue_number"]
@@ -389,6 +437,7 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{escape_html(title)}</title>
 <style>{PAGE_STYLE}</style>
+<script>try {{ var t = localStorage.getItem('asm-theme'); if (t === 'github-light' || t === 'terminal-dark' || t === 'vivid-purple') {{ document.documentElement.setAttribute('data-theme', t); }} }} catch (e) {{ console.warn('无法读取主题偏好', e); }}</script>
 </head>
 <body>
 <div class="frame">
@@ -408,6 +457,7 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 </div>
 {extra_js}
 {THEME_MARKUP}
+{THEME_JS}
 </body>
 </html>"""
 

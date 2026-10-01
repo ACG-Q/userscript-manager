@@ -416,5 +416,25 @@ class TestThemeDrawerMarkup(unittest.TestCase):
             self.assertIn(cls, PREVIEW_CSS)
 
 
+class TestThemeDrawerJS(unittest.TestCase):
+    def test_head_applies_stored_theme_before_paint(self):
+        for html in (build_index({"scripts": []}), build_detail(make_script())):
+            head = html.split("</head>")[0]
+            self.assertIn("asm-theme", head)
+            self.assertIn('setAttribute("data-theme"', head.replace("'", '"'))
+
+    def test_page_wires_drawer_and_persistence(self):
+        html = build_index({"scripts": []})
+        self.assertIn("asm-theme", html)
+        self.assertIn("applyTheme", html)
+        self.assertIn("Escape", html)
+        self.assertIn("settingsDrawer", html)
+        self.assertIn("localStorage", html)
+
+    def test_initial_theme_attribute_unchanged_fallback(self):
+        html = build_index({"scripts": []})
+        self.assertIn('<html lang="zh-CN" data-theme="github-light">', html)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
