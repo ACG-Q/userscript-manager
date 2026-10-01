@@ -119,8 +119,6 @@ main { padding: 8px 28px 36px; }
 .badge.plain { background: var(--neutral-bg); color: var(--text-muted); }
 .disc-latest { margin: 0; line-height: 1.55; }
 .disc-who { display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
-.disc-empty { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0; color: var(--text-muted); }
-.disc-empty a { font-weight: 600; font-size: 13px; }
 
 .sc-actions { display: flex; flex-direction: column; gap: 8px; }
 .empty-state { text-align: center; color: var(--text-muted); padding: 36px 16px; }
@@ -296,17 +294,18 @@ def discussion_badges(stats) -> str:
 def script_discussion_panel(script: dict, stats) -> str:
     url = (script.get("discussion") or {}).get("url")
     if not url:
-        return (
-            f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
-            f'<p class="disc-empty"><span>还没有讨论</span>'
-            f'<a href="{escape_html(discussions_list_url())}">发起讨论 →</a></p></div>'
-        )
+        return (f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
+                + empty_state(
+                    "还没有讨论", small=True,
+                    link_html=f'<a href="{escape_html(discussions_list_url())}">'
+                              "发起讨论 →</a>")
+                + "</div>")
     if stats is None:
-        return (
-            f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
-            f'<p class="disc-empty"><span>摘要暂不可用</span>'
-            f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></p></div>'
-        )
+        return (f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
+                + empty_state(
+                    "摘要暂不可用", small=True,
+                    link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
+                + "</div>")
     head = f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
     if stats.replies:
         latest = stats.replies[-1]
@@ -383,14 +382,12 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
     scripts = registry["scripts"]
     cards = "\n".join(script_card(s, stats_map.get(s["id"])) for s in scripts)
     if not cards:
-        cards = ('<p class="empty">暂无脚本，请在命令面板 Issue #1 '
-                 "中使用 /add 添加。</p>")
+        cards = empty_state(
+            "暂无脚本，请在命令面板 Issue #1 中使用 /add 添加。")
         filter_empty = ""
     else:
-        filter_empty = (
-            '<p class="empty" id="filter-empty" hidden>'
-            "没有符合筛选条件的脚本</p>"
-        )
+        filter_empty = empty_state("没有符合筛选条件的脚本",
+                                   elem_id="filter-empty", hidden=True)
     if degraded:
         replies_html = answered_html = "—"
     else:
@@ -422,21 +419,20 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
 def detail_discussion_panel(script: dict, stats) -> str:
     url = (script.get("discussion") or {}).get("url")
     if not url:
-        return (
-            '<section class="d-disc"><div class="disc-head">'
-            f'{ICON_COMMENT}讨论</div>'
-            f'<p class="disc-empty"><span>还没有讨论</span>'
-            f'<a href="{escape_html(discussions_list_url())}">发起讨论 →</a>'
-            "</p></section>"
-        )
+        return ('<section class="d-disc"><div class="disc-head">'
+                f'{ICON_COMMENT}讨论</div>'
+                + empty_state(
+                    "还没有讨论", small=True,
+                    link_html=f'<a href="{escape_html(discussions_list_url())}">'
+                              "发起讨论 →</a>")
+                + "</section>")
     if stats is None:
-        return (
-            '<section class="d-disc"><div class="disc-head">'
-            f'{ICON_COMMENT}讨论</div>'
-            f'<p class="disc-empty"><span>摘要暂不可用</span>'
-            f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>'
-            "</p></section>"
-        )
+        return ('<section class="d-disc"><div class="disc-head">'
+                f'{ICON_COMMENT}讨论</div>'
+                + empty_state(
+                    "摘要暂不可用", small=True,
+                    link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
+                + "</section>")
     head = (
         f'<div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
         f'<span class="grow"></span>'
@@ -451,7 +447,7 @@ def detail_discussion_panel(script: dict, stats) -> str:
             for r in stats.replies
         )
     else:
-        comments = '<p class="disc-empty"><span>还没有回复</span></p>'
+        comments = empty_state("还没有回复", small=True)
     return f'<section class="d-disc">{head}{comments}</section>'
 
 
@@ -503,7 +499,7 @@ def build_detail(script: dict, stats=None) -> str:
             f"<tbody>{ch_rows}</tbody></table>"
         )
     else:
-        changelog_html = "<p>暂无更新记录。</p>"
+        changelog_html = empty_state("暂无更新记录。")
 
     body = f"""<main>
 <section class="detail-card">

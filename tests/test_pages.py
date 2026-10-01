@@ -161,6 +161,8 @@ class TestIndexPanels(unittest.TestCase):
         self.assertIn('id="filter-empty" hidden', html)
         self.assertIn("没有符合筛选条件的脚本", html)
         self.assertIn("filter-empty", FILTER_JS_SRC)
+        self.assertIn('class="empty-state"', html)
+        self.assertNotIn('class="empty"', html)
 
 
 class TestDetailPanels(unittest.TestCase):
@@ -211,9 +213,20 @@ class TestDetailPanels(unittest.TestCase):
         self.assertIn('title="脚本已启用，安装链接可用"', html)
         self.assertIn('title="讨论已被标记为已解决"', html)
 
-    def test_empty_changelog_uses_empty_class(self):
+    def test_empty_changelog_uses_empty_state(self):
         html = build_detail(make_script(changelog=[]))
-        self.assertIn('<p class="empty">暂无更新记录。</p>', html)
+        self.assertIn('class="empty-state"', html)
+        self.assertIn("暂无更新记录。", html)
+
+    def test_discussion_empty_states_use_component(self):
+        card = build_index({"scripts": [make_script(discussion=None)]})
+        self.assertIn('class="empty-state sm"', card)
+        self.assertIn("还没有讨论", card)
+        degraded = build_detail(make_script(), None)
+        self.assertIn('class="empty-state sm"', degraded)
+        self.assertIn("摘要暂不可用", degraded)
+        with_disc = build_detail(make_script(), make_stats(replies=()))
+        self.assertIn("还没有回复", with_disc)
 
     def test_empty_state_renders_svg_text_and_variants(self):
         html = empty_state("没有数据")
