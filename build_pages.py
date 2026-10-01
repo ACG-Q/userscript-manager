@@ -511,11 +511,11 @@ def empty_state(text: str, small: bool = False, link_html: str = "",
             f"<p>{text}</p>{link}</div>")
 
 
-def discussions_list_url() -> str:
-    return f"https://github.com/{CONFIG['github_repo']}/discussions"
+def issues_list_url() -> str:
+    return f"https://github.com/{CONFIG['github_repo']}/issues?q=is%3Aissue+label%3Ascript"
 
 
-def discussion_badges(stats) -> str:
+def issue_badges(stats) -> str:
     if stats.is_closed:
         return (
             f'<span class="badge" data-tip="讨论已被标记为已解决">'
@@ -534,13 +534,13 @@ def discussion_badges(stats) -> str:
     )
 
 
-def script_discussion_panel(script: dict, stats) -> str:
-    url = (script.get("discussion") or {}).get("url")
+def script_issue_panel(script: dict, stats) -> str:
+    url = (script.get("issue") or {}).get("url")
     if not url:
         return (f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "还没有讨论", small=True,
-                    link_html=f'<a href="{escape_html(discussions_list_url())}">'
+                    link_html=f'<a href="{escape_html(issues_list_url())}">'
                               "发起讨论 →</a>")
                 + "</div>")
     if stats is None:
@@ -549,7 +549,7 @@ def script_discussion_panel(script: dict, stats) -> str:
                     "摘要暂不可用", small=True,
                     link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
                 + "</div>")
-    head = f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
+    head = f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论{issue_badges(stats)}'
     if stats.replies:
         latest = stats.replies[-1]
         who = "仓库所有者" if latest.is_owner else latest.author
@@ -601,9 +601,9 @@ def script_card(script: dict, stats) -> str:
         status_text = "已禁用"
     install = escape_html(get_install_url(script["id"]))
     disc_href = escape_html(
-        (script.get("discussion") or {}).get("url") or discussions_list_url()
+        (script.get("issue") or {}).get("url") or issues_list_url()
     )
-    panel = script_discussion_panel(script, stats)
+    panel = script_issue_panel(script, stats)
     return f"""<article class="script-card" data-type="{script_type}">
 <div class="sc-main">
 <div class="sc-title"><h3>{name}</h3>{type_html}{version_html}<span class="status{status_cls}" data-tip="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
@@ -638,7 +638,7 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
         answered_html = str(sum(1 for st in stats_map.values() if st.is_closed))
     body = f"""<section class="hero">
 <h1>{BRAND}</h1>
-<p class="sub">基于 GitHub Issues + Discussions 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
+<p class="sub">基于 GitHub Issues 的全自动脚本管理：在命令面板里用 <code>/add</code>、<code>/up</code> 管理脚本，每个脚本拥有独立讨论区，安装即可用。</p>
 <div class="stats">
 <div class="stat" data-tip="注册表中的脚本总数"><b>{len(scripts)}</b><span>脚本总数</span></div>
 <div class="stat" data-tip="全部脚本讨论的回复总数"><b>{replies_html}</b><span>讨论回复</span></div>
@@ -659,14 +659,14 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
     return page(BRAND, body, extra_js=FILTER_JS)
 
 
-def detail_discussion_panel(script: dict, stats) -> str:
-    url = (script.get("discussion") or {}).get("url")
+def detail_issue_panel(script: dict, stats) -> str:
+    url = (script.get("issue") or {}).get("url")
     if not url:
         return ('<section class="d-disc"><div class="disc-head">'
                 f'{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "还没有讨论", small=True,
-                    link_html=f'<a href="{escape_html(discussions_list_url())}">'
+                    link_html=f'<a href="{escape_html(issues_list_url())}">'
                               "发起讨论 →</a>")
                 + "</section>")
     if stats is None:
@@ -677,7 +677,7 @@ def detail_discussion_panel(script: dict, stats) -> str:
                     link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
                 + "</section>")
     head = (
-        f'<div class="disc-head">{ICON_COMMENT}讨论{discussion_badges(stats)}'
+        f'<div class="disc-head">{ICON_COMMENT}讨论{issue_badges(stats)}'
         f'<span class="grow"></span>'
         f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></div>'
     )
@@ -759,7 +759,7 @@ def build_detail(script: dict, stats=None) -> str:
 <section class="d-doc">
 {render_markdown(script.get("documentation") or "_暂无文档_")}
 </section>
-{detail_discussion_panel(script, stats)}
+{detail_issue_panel(script, stats)}
 <section class="d-doc">
 <h2>更新历史</h2>
 {changelog_html}

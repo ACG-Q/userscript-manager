@@ -30,8 +30,8 @@ def make_script(**overrides):
         "author": "作者", "enabled": True, "match": ["*://a/*"],
         "description": "描述", "documentation": "# 文档",
         "changelog": [{"version": "1.0.0", "date": "2026-10-01", "note": "初始版本"}],
-        "discussion": {"number": 4, "node_id": "D_4",
-                       "url": "https://github.com/t/r/discussions/4"},
+        "issue": {"number": 4, "node_id": "I_4",
+                  "url": "https://github.com/t/r/issues/4"},
     }
     script.update(overrides)
     return script
@@ -44,7 +44,7 @@ def make_stats(answered=True, count=8, replies=None):
             created_at="2026-10-01T06:00:00Z", is_owner=True,
         ),)
     return IssueStats(
-        number=4, url="https://github.com/t/r/discussions/4",
+        number=4, url="https://github.com/t/r/issues/4",
         is_closed=answered, reply_count=count, replies=replies,
     )
 
@@ -55,11 +55,11 @@ class TestPages(unittest.TestCase):
         self.assertNotIn("<img src=x", html)
         self.assertIn("&lt;img", html)
 
-    def test_index_links_install_detail_and_discussion(self):
+    def test_index_links_install_detail_and_issue(self):
         html = build_index({"scripts": [make_script()]})
         self.assertIn('href="scripts/abc123.html"', html)
         self.assertIn("https://testuser.github.io/testrepo/dist/abc123.user.js", html)
-        self.assertIn("https://github.com/t/r/discussions/4", html)
+        self.assertIn("https://github.com/t/r/issues/4", html)
 
     def test_detail_escapes_dynamic_fields(self):
         html = build_detail(make_script(name='<script>x</script>'))
@@ -97,15 +97,15 @@ class TestIndexPanels(unittest.TestCase):
         self.assertNotIn('<span class="badge">', html)
         self.assertNotIn('<p class="disc-latest">', html)
 
-    def test_card_without_discussion_shows_empty_state(self):
-        html = build_index({"scripts": [make_script(discussion=None)]}, {})
+    def test_card_without_issue_shows_empty_state(self):
+        html = build_index({"scripts": [make_script(issue=None)]}, {})
         self.assertIn("还没有讨论", html)
-        self.assertIn("/discussions", html)
+        self.assertIn("/issues", html)
 
     def test_card_degraded_keeps_github_link(self):
         html = build_index({"scripts": [make_script()]}, None)
         self.assertIn("摘要暂不可用", html)
-        self.assertIn("https://github.com/t/r/discussions/4", html)
+        self.assertIn("https://github.com/t/r/issues/4", html)
 
     def test_hero_stats_sum_and_dash(self):
         html = build_index({"scripts": [make_script()]}, {"abc123": make_stats(count=8)})
@@ -164,18 +164,22 @@ class TestIndexPanels(unittest.TestCase):
         self.assertIn('class="empty-state"', html)
         self.assertNotIn('class="empty"', html)
 
+    def test_list_url_filters_by_label(self):
+        html = build_index({"scripts": [make_script(issue=None)]})
+        self.assertIn("q=is%3Aissue+label%3Ascript", html)
+
 
 class TestDetailPanels(unittest.TestCase):
-    def test_no_discussion_empty_state(self):
-        html = build_detail(make_script(discussion=None), make_stats())
+    def test_no_issue_empty_state(self):
+        html = build_detail(make_script(issue=None), make_stats())
         self.assertIn("还没有讨论", html)
-        self.assertIn("testuser/testrepo/discussions", html)
+        self.assertIn("testuser/testrepo/issues", html)
         self.assertNotIn("摘要暂不可用", html)
 
     def test_degraded_panel_keeps_github_link(self):
         html = build_detail(make_script())
         self.assertIn("摘要暂不可用", html)
-        self.assertIn("https://github.com/t/r/discussions/4", html)
+        self.assertIn("https://github.com/t/r/issues/4", html)
         self.assertNotIn('<div class="cmt', html)
 
     def test_stats_panel_shows_badges_and_comments(self):
@@ -185,7 +189,7 @@ class TestDetailPanels(unittest.TestCase):
         self.assertIn('<div class="cmt owner">', html)
         self.assertIn("已修复，更新到 v1.0.1 即可。", html)
         self.assertIn("<time>", html)
-        self.assertIn("https://github.com/t/r/discussions/4", html)
+        self.assertIn("https://github.com/t/r/issues/4", html)
 
     def test_stats_unanswered_zero_replies(self):
         html = build_detail(
@@ -218,8 +222,8 @@ class TestDetailPanels(unittest.TestCase):
         self.assertIn('class="empty-state"', html)
         self.assertIn("暂无更新记录。", html)
 
-    def test_discussion_empty_states_use_component(self):
-        card = build_index({"scripts": [make_script(discussion=None)]})
+    def test_issue_empty_states_use_component(self):
+        card = build_index({"scripts": [make_script(issue=None)]})
         self.assertIn('class="empty-state sm"', card)
         self.assertIn("还没有讨论", card)
         degraded = build_detail(make_script(), None)
