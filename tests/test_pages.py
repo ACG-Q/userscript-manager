@@ -63,5 +63,32 @@ class TestPages(unittest.TestCase):
         self.assertIn("<h1>t</h1>", render_markdown("# t"))
 
 
+class TestThemeTokens(unittest.TestCase):
+    def test_html_declares_default_theme(self):
+        html = build_index({"scripts": []})
+        self.assertIn('data-theme="github-light"', html)
+
+    def test_reserved_theme_blocks_present(self):
+        html = build_index({"scripts": []})
+        self.assertIn('[data-theme="terminal-dark"]', html)
+        self.assertIn('[data-theme="vivid-purple"]', html)
+
+    def test_token_layer_defines_brand(self):
+        from build_pages import TOKEN_CSS
+        self.assertIn("--brand: #0969da", TOKEN_CSS)
+        self.assertIn("--font-mono", TOKEN_CSS)
+
+    def test_component_layer_only_uses_variables(self):
+        from build_pages import COMPONENT_CSS
+        self.assertNotIn("#0969da", COMPONENT_CSS)
+        self.assertIn("var(--brand)", COMPONENT_CSS)
+
+    def test_shell_has_nav_and_footer_links(self):
+        html = build_index({"scripts": []})
+        self.assertIn("https://github.com/testuser/testrepo", html)
+        self.assertIn("issues/1", html)
+        self.assertIn("管理入口", html)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
