@@ -61,6 +61,29 @@ class TestPages(unittest.TestCase):
         self.assertIn("https://testuser.github.io/testrepo/dist/abc123.user.js", html)
         self.assertIn("https://github.com/t/r/issues/4", html)
 
+    def test_detail_links_install_when_enabled(self):
+        html = build_detail(make_script(), make_stats())
+        self.assertIn(
+            '<a class="btn primary" '
+            'href="https://testuser.github.io/testrepo/dist/abc123.user.js">'
+            "安装脚本</a>",
+            html,
+        )
+
+    def test_index_disabled_install_button_is_inert(self):
+        html = build_index({"scripts": [make_script(enabled=False)]})
+        self.assertNotIn(
+            'href="https://testuser.github.io/testrepo/dist/abc123.user.js"', html
+        )
+        self.assertIn('aria-disabled="true"', html)
+
+    def test_detail_disabled_install_button_is_inert(self):
+        html = build_detail(make_script(enabled=False), make_stats())
+        self.assertNotIn(
+            'href="https://testuser.github.io/testrepo/dist/abc123.user.js"', html
+        )
+        self.assertIn('aria-disabled="true"', html)
+
     def test_detail_escapes_dynamic_fields(self):
         html = build_detail(make_script(name='<script>x</script>'))
         self.assertNotIn("<script>x", html)

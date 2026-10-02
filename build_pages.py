@@ -135,6 +135,8 @@ a.brand:hover { text-decoration: none; color: var(--brand); }
 .btn.nav-btn:hover { background: var(--brand-hover); }
   .btn.primary { background: var(--primary); color: var(--on-accent); }
 .btn.primary:hover { background: var(--primary-hover); }
+.btn.primary.disabled { background: var(--neutral-bg); color: var(--text-muted); border-color: var(--border); cursor: not-allowed; }
+.btn.primary.disabled:hover { background: var(--neutral-bg); }
 .btn.ghost { background: var(--bg-subtle); border-color: var(--border); color: var(--text); }
 .btn.ghost:hover { background: var(--neutral-bg); border-color: var(--border-strong); }
 .btn.big { min-height: 48px; padding: 0 24px; font-size: 15px; }
@@ -563,6 +565,15 @@ def script_issue_panel(script: dict, stats) -> str:
     return f"{head}</div>{quote}</div>"
 
 
+def install_button(script: dict, label: str = "安装") -> str:
+    """安装按钮：启用时为可点击链接，禁用时为无 href 的灰色禁用态。"""
+    if not script.get("enabled", True):
+        return (f'<span class="btn primary disabled" aria-disabled="true" '
+                f'data-tip="脚本已禁用，暂不可安装">{label}</span>')
+    url = escape_html(get_install_url(script["id"]))
+    return f'<a class="btn primary" href="{url}">{label}</a>'
+
+
 def script_card(script: dict, stats) -> str:
     sid = escape_html(script["id"])
     name = escape_html(script.get("name", script["id"]))
@@ -599,7 +610,6 @@ def script_card(script: dict, stats) -> str:
         status_cls = " off"
         status_title = "脚本已禁用，暂不可安装"
         status_text = "已禁用"
-    install = escape_html(get_install_url(script["id"]))
     disc_href = escape_html(
         (script.get("issue") or {}).get("url") or issues_list_url()
     )
@@ -612,7 +622,7 @@ def script_card(script: dict, stats) -> str:
 </div>
 {panel}
 <div class="sc-actions">
-<a class="btn primary" href="{install}">安装</a>
+{install_button(script)}
 <a class="btn ghost" href="scripts/{sid}.html">详情</a>
 <a class="btn ghost" href="{disc_href}">讨论</a>
 </div>
@@ -700,7 +710,6 @@ def build_detail(script: dict, stats=None) -> str:
     author = escape_html(script.get("author", "") or "-")
     description = escape_html(script.get("description", ""))
     matches = " ".join(f"<code>{escape_html(m)}</code>" for m in script.get("match") or [])
-    install_url = escape_html(get_install_url(script["id"]))
 
     if script["type"] == "self":
         type_html = '<span class="pill type-self" data-tip="本仓库自主编写的脚本">自写</span>'
@@ -752,7 +761,7 @@ def build_detail(script: dict, stats=None) -> str:
 <div class="d-pills">{type_html}{version_html}<span class="status{status_cls}" data-tip="{status_title}"><span class="dot" aria-hidden="true"></span>{status_text}</span></div>
 <h3>{name}</h3>
 </div>
-<a class="btn primary" href="{install_url}">安装脚本</a>
+{install_button(script, "安装脚本")}
 </div>
 <div class="d-meta"><span><i>作者</i>{author}</span>{when_html}<span><i>匹配规则</i>{matches or "-"}</span></div>
 {desc_html}
