@@ -2,12 +2,13 @@ from ..commands import register
 
 @register("list")
 def execute(registry, args, code, markdown, has_code_block):
-    """/list：列出全部脚本及启用/同步状态。"""
-    if not registry["scripts"]:
+    """/list：列出全部未软删的脚本及启用/同步状态。"""
+    visible = [s for s in registry["scripts"] if not s.get("deleted")]
+    if not visible:
         return "📭 当前没有脚本。"
-    
+
     lines = ["📋 脚本列表："]
-    for s in registry["scripts"]:
+    for s in visible:
         status = "✅" if s.get("enabled", True) else "⏸️"
         script_type = "📝" if s["type"] == "self" else "🔄"
         sync_status = ""

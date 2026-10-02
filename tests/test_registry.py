@@ -59,5 +59,34 @@ class TestRegistry(ConfigIsolation):
             load_registry()
 
 
+class TestSoftDeleteDefaults(ConfigIsolation):
+    """软删除 schema：加载即补 discussions/deleted 默认值（D3/D7）。"""
+    TMP_PREFIX = "usm_regsd_"
+
+    def test_entry_gets_discussions_and_deleted_defaults(self):
+        CONFIG["registry_file"].write_text(
+            '{"scripts": [{"id": "x", "type": "self"}]}', encoding="utf-8"
+        )
+        s = load_registry()["scripts"][0]
+        self.assertEqual(s["discussions"], [])
+        self.assertFalse(s["deleted"])
+
+    def test_existing_values_preserved(self):
+        CONFIG["registry_file"].write_text(
+            '{"scripts": [{"id": "x", "type": "self", "deleted": true,'
+            ' "discussions": [{"version": "1.0.0", "number": 7}]}]}',
+            encoding="utf-8",
+        )
+        s = load_registry()["scripts"][0]
+        self.assertTrue(s["deleted"])
+        self.assertEqual(s["discussions"][0]["number"], 7)
+
+    def test_missing_scripts_key_still_loads(self):
+        CONFIG["registry_file"].write_text('{"foo": 1}', encoding="utf-8")
+        data = load_registry()
+        self.assertEqual(data["scripts"], [])
+        self.assertEqual(data["foo"], 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -103,7 +103,8 @@ class TestEndToEndCommands(ConfigIsolation):
     def test_remove_then_list_empty(self):
         sid = self._add()
         self.assertIn("已删除", self._run(f"/rm {sid}"))
-        self.assertEqual(self.registry["scripts"], [])
+        self.assertEqual(len(self.registry["scripts"]), 1)
+        self.assertTrue(self.registry["scripts"][0]["deleted"])
         self.assertFalse((self._tmp / "dist" / f"{sid}.user.js").exists())
         self.assertIn("没有脚本", self._run("/list"))
 

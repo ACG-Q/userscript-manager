@@ -1,8 +1,8 @@
 """registry.json 读写与结构校验。
 
 分工约定（避免两套写入口漂移）：
-- 结构性变更（新增/删除条目）走 add_script / remove_script，一步完成改内存+落盘；
-- 字段级就地修改（命令直接改 script dict）之后用 save_registry 落盘。
+- 新增条目走 add_script，一步完成改内存+落盘；
+- 字段级就地修改（命令直接改 script dict，含软删除/复活）之后用 save_registry 落盘。
 """
 import json
 import os
@@ -28,6 +28,10 @@ def load_registry() -> dict:
         _validate_registry(data, path)
         if "scripts" not in data:
             data["scripts"] = []
+        for s in data["scripts"]:
+            # 向后兼容：旧记录加载即补齐软删与讨论账本字段（D3/D7）
+            s.setdefault("discussions", [])
+            s.setdefault("deleted", False)
         return data
     return {"scripts": []}
 
@@ -83,13 +87,3 @@ def add_script(registry: dict, script_meta: dict) -> None:
     """追加新脚本并立即落盘（结构性变更的唯一入口之一）。"""
     registry["scripts"].append(script_meta)
     save_registry(registry)
-
-
-def remove_script(registry: dict, script_id: str) -> bool:
-    """按 ID 删除脚本并落盘；不存在返回 False。"""
-    script = find_script(registry, script_id)
-    if not script:
-        return False
-    registry["scripts"] = [s for s in registry["scripts"] if s["id"] != script_id]
-    save_registry(registry)
-    return True

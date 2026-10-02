@@ -19,6 +19,8 @@ def execute(registry, args, code, markdown, has_code_block):
     script = find_script(registry, args)
     if not script:
         return f"❌ 未找到 ID 为 {args} 的脚本。"
+    if script.get("deleted"):
+        return f"❌ 脚本 {args} 已删除，请重新 /add 复活后再更新"
     if script["type"] != "self":
         return f"❌ ID {args} 不是自写脚本，无法更新。同步脚本请使用 /sync {args}"
 

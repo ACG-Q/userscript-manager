@@ -15,6 +15,11 @@ def execute(registry, args, code, markdown, has_code_block):
     script = find_script(registry, args)
     if not script:
         return f"❌ 未找到 ID 为 {args} 的脚本。"
+    if script.get("deleted"):
+        return (
+            f"❌ 脚本 {args} 已删除，请重新 /add 复活后再同步"
+            "（同步脚本可直接重发 /add <来源URL>）。"
+        )
     if script["type"] != "synced":
         return f"❌ ID {args} 不是同步脚本，无法同步。"
     
@@ -28,6 +33,7 @@ def execute_sync_all(registry, args, code, markdown, has_code_block):
     synced_scripts = [
         s for s in registry["scripts"]
         if s["type"] == "synced" and s.get("sync_enabled", True)
+        and not s.get("deleted")
     ]
     if not synced_scripts:
         return "📭 没有启用自动同步的脚本。"
