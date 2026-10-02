@@ -16,6 +16,9 @@ from userscript_manager.registry import load_registry
 from pages_assets import COMPONENT_CSS, FILTER_JS, PREVIEW_CSS, TOKEN_CSS
 
 BRAND = "油猴脚本管理器"
+BRAND_SHORT = "脚本管理器"
+NAV_BTN_FULL = "管理入口 · Issue #1"
+NAV_BTN_SHORT = "管理"
 
 PAGE_STYLE = TOKEN_CSS + COMPONENT_CSS + PREVIEW_CSS
 
@@ -116,8 +119,13 @@ THEME_JS = """<script>
     overlay.classList.toggle('open', open);
     rail.setAttribute('aria-expanded', String(open));
     drawer.setAttribute('aria-hidden', String(!open));
-    if (open) drawer.querySelector('.theme-list button').focus();
-    else rail.focus();
+    if (open) {
+      document.body.style.overflow = 'hidden';
+      drawer.querySelector('.theme-list button').focus();
+    } else {
+      document.body.style.overflow = '';
+      rail.focus();
+    }
   }
 
   rail.addEventListener('click', function () {
@@ -140,19 +148,20 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 <html lang="zh-CN" data-theme="github-light">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>{escape_html(title)}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><text y=%2215%22 font-size=%2224%22 text-anchor=%22middle%22 fill=%22%233b82f6%22>📜</text></svg>">
 <style>{PAGE_STYLE}</style>
 <script>try {{ var t = localStorage.getItem('asm-theme'); if (t === 'github-light' || t === 'terminal-dark' || t === 'vivid-purple') {{ document.documentElement.setAttribute('data-theme', t); }} }} catch (e) {{ console.warn('无法读取主题偏好', e); }}</script>
 </head>
 <body>
 <div class="frame">
 <header class="nav">
-<a class="brand" href="{root_href}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>{BRAND}</a>
+<a class="brand" href="{root_href}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="brand-full">{BRAND}</span><span class="brand-short">{BRAND_SHORT}</span></a>
 <span class="spacer"></span>
 <a class="link" href="https://github.com/{repo}/blob/master/docs/index.md">文档</a>
 <a class="link" href="https://github.com/{repo}">GitHub 仓库</a>
-<a class="btn nav-btn" href="https://github.com/{repo}/issues/{issue}">管理入口 · Issue #{issue}</a>
+<a class="btn nav-btn" href="https://github.com/{repo}/issues/{issue}"><span class="btn-label-full">管理入口 · Issue #{issue}</span><span class="btn-label-short">管理</span></a>
 </header>
 {body_html}
 <footer class="foot">
