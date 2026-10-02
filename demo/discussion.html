@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discussion #9 · [v1.0.1] 我的去广告脚本 (Demo)</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI",
+  Helvetica, Arial, sans-serif, "Apple Color Emoji"; color: #1f2328; background: #ffffff; }
+a { color: #0969da; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.gh-top { background: #f6f8fa; border-bottom: 1px solid #d1d9e0; }
+.gh-top-in { max-width: 1012px; margin: 0 auto; padding: 14px 24px;
+  display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.gh-top-in .sep { color: #59636e; }
+.gh-count { border: 1px solid #d1d9e0; border-radius: 999px; padding: 0 8px;
+  font-size: 12px; color: #59636e; background: #ffffff; }
+.gh-wrap { max-width: 1012px; margin: 0 auto; padding: 24px; }
+.gh-title { font-size: 32px; font-weight: 400; line-height: 1.25; margin: 0 0 12px; }
+.gh-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 16px; font-size: 12px; color: #59636e; }
+.gh-state { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+  border-radius: 999px; font-weight: 600; font-size: 12px; }
+.gh-state.open { background: #1a7f37; color: #ffffff; }
+.gh-state.done { background: #8250df; color: #ffffff; }
+.gh-label { padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;
+  color: #0969da; background: #ddf4ff; border: 1px solid #54aeff66; }
+.gh-cat { padding: 2px 10px; border-radius: 999px; font-weight: 600; font-size: 12px;
+  color: #8250df; background: #fbefff; border: 1px solid #d8b9ff; }
+.gh-card { border: 1px solid #d1d9e0; border-radius: 6px; margin-bottom: 16px; }
+.gh-card-head { padding: 10px 16px; background: #f6f8fa;
+  border-bottom: 1px solid #d1d9e0; border-radius: 6px 6px 0 0;
+  font-size: 12px; color: #59636e; display: flex; align-items: center; gap: 8px; }
+.gh-card-head b { color: #1f2328; }
+.gh-avatar { width: 24px; height: 24px; border-radius: 50%; background: #bc4c00;
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; flex: none; }
+.gh-content { padding: 16px; font-size: 14px; line-height: 1.6; }
+.gh-content h2 { font-size: 16px; margin: 16px 0 8px; }
+.gh-content h2:first-child { margin-top: 0; }
+.gh-content p { margin: 0 0 10px; }
+.gh-content code { padding: 1px 6px; border-radius: 5px; font-size: 90%;
+  background: #f6f8fa; border: 1px solid #d1d9e0; }
+.gh-content table { border-collapse: collapse; width: auto; margin: 4px 0 12px;
+  font-size: 13.5px; }
+.gh-content th, .gh-content td { border: 1px solid #d1d9e0; padding: 6px 13px;
+  text-align: left; }
+.gh-content th { background: #f6f8fa; font-weight: 600; }
+.gh-content blockquote { margin: 10px 0; padding: 2px 14px;
+  border-left: 3px solid #d1d9e0; color: #59636e; }
+.gh-answer { display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px;
+  border-radius: 999px; font-weight: 600; font-size: 12px;
+  color: #1a7f37; background: #dafbe1; border: 1px solid #4ac26b66; }
+.gh-comment { padding: 16px 0 0; margin-top: 16px; border-top: 1px solid #d1d9e0; }
+.gh-comment:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+.gh-comment .c-head { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.gh-comment .c-body { margin: 8px 0 0 32px; }
+.gh-comment .c-replies { margin: 8px 0 0 32px; padding-left: 16px;
+  border-left: 2px solid #d1d9e0; }
+.gh-note { font-size: 12px; color: #59636e; margin: 12px 0 0; }
+.gh-back { font-size: 13px; display: inline-block; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<header class="gh-top"><div class="gh-top-in">
+<b>ACG-Q/userscript-manager</b><span class="sep">/</span>
+</div></header>
+<main class="gh-wrap">
+<a class="gh-back" href="index.html">← 返回 Demo 导航</a>
+<h1 class="gh-title">[v1.0.1] 我的去广告脚本 2026-10-01</h1>
+<div class="gh-sub">
+<span class="gh-state done">✓ 已解决</span>
+<span class="gh-cat">💬 Q&amp;A</span>
+<span>讨论 #9 · 由机器人发布于 2026-10-01 · 创建后不再修改</span>
+</div>
+<div class="gh-card">
+<div class="gh-card-head"><span class="gh-avatar">A</span><b>ACG-Q</b>
+<span>发布于 2026-10-01</span></div>
+<div class="gh-content">
+<h2>脚本信息（发帖时快照）</h2>
+<table>
+<tr><th>字段</th><th>值</th></tr>
+<tr><td>名称</td><td>我的去广告脚本</td></tr><tr><td>版本</td><td>1.0.1</td></tr><tr><td>作者</td><td>ACG-Q</td></tr><tr><td>命名空间</td><td><code>https://github.com/ACG-Q/userscript-manager</code></td></tr><tr><td>匹配规则</td><td><code>*://www.baidu.com/*</code></td></tr><tr><td>授权</td><td><code>none</code></td></tr><tr><td>来源类型</td><td>自写</td></tr><tr><td>创建时间</td><td>2026-08-20</td></tr><tr><td>最后同步</td><td>-</td></tr><tr><td>安装链接</td><td><a target="_blank" rel="noopener noreferrer" href="https://acg-q.github.io/userscript-manager/scripts/d1620a7a-ae3b-4817-ae2b-016f48cf81a1.user.js">安装脚本</a></td></tr>
+</table>
+<h2>本次更新</h2>
+<p>自 v1.0.0 更新至 <strong>v1.0.1</strong>：手动更新。</p>
+<p>描述：移除百度首页和搜索结果广告，支持信息流与推广链接过滤。</p>
+<blockquote>回链：<a target="_blank" rel="noopener noreferrer" href="https://github.com/ACG-Q/userscript-manager/issues/2">Issue #2（状态与索引）</a> ·
+<a href="detail.html">脚本详情页</a> ·
+<a href="index.html">Demo 导航</a></blockquote>
+</div>
+</div>
+<div class="gh-card">
+<div class="gh-card-head"><span class="gh-avatar">U</span><b>user123</b>
+<span>commented 2 天前</span></div>
+<div class="gh-content">
+<div class="gh-comment">
+<div class="c-head"><span class="gh-avatar" style="background:#0969da">U</span>
+<b>user123</b><span>commented 2 天前</span></div>
+<div class="c-body"><p>首页右侧广告没了，但<strong>搜索结果页底部</strong>还有推广链接卡片，是还没适配吗？</p></div>
+<div class="c-replies">
+<div class="gh-comment">
+<div class="c-head"><span class="gh-avatar" style="background:#bc4c00">A</span>
+<b>ACG-Q</b><span class="gh-answer">✓ 已标记为答案</span><span>commented 2 天前</span></div>
+<div class="c-body"><p>是的，v1.0.1 已修复该问题。升级到最新版本刷新页面即可生效。</p></div>
+</div>
+</div>
+</div>
+<div class="gh-comment">
+<div class="c-head"><span class="gh-avatar" style="background:#8250df">R</span>
+<b>reader9527</b><span>commented 1 天前</span></div>
+<div class="c-body"><p>能不能加个快捷键临时开关去广告？有时要对比原页面。</p></div>
+</div>
+</div>
+</div>
+</main>
+</body>
+</html>
