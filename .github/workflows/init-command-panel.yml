@@ -15,6 +15,7 @@ concurrency:
 jobs:
   init:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -26,13 +27,25 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           # 用 --jq 取原始值，避免依赖 JSON 紧凑/缩进格式（此前 grep 带空格模式在
-          # 非 TTY 紧凑输出下永远匹配失败，导致每次 push 都重复建面板 Issue）
-          NUM=$(gh api "repos/$REPO/issues/1" --jq '.number' 2>/dev/null || true)
-          if [ "$NUM" = "1" ]; then
+          # 非 TTY 紧凑输出下永远匹配失败，导致每次 push 都重复建面板 Issue）。
+          # 404（尚未创建）与其它 API 错误（限流/网络）必须区分：
+          # 仅 404 才继续创建，其它错误直接失败，避免误判后重复建面板。
+          set +e
+          NUM=$(gh api "repos/$REPO/issues/1" --jq '.number' 2>/tmp/gh_err)
+          RC=$?
+          set -e
+          if [ "$RC" -eq 0 ] && [ "$NUM" = "1" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "Issue #1 已存在，跳过创建"
-          else
+          elif [ "$RC" -eq 0 ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif grep -q "404" /tmp/gh_err; then
+            echo "Issue #1 尚不存在，将创建"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::检查 Issue #1 时 API 出错（非 404），中止以避免误建面板"
+            cat /tmp/gh_err
+            exit 1
           fi
 
       - name: Create command panel issue (Issue #1)

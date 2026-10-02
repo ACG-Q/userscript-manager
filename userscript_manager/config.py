@@ -5,8 +5,9 @@ PROJECT_ROOT = Path(__file__).parent.parent
 
 CONFIG = {
     "author": {
-        "name": os.getenv("AUTHOR_NAME", "Your Name"),
-        "namespace": os.getenv("AUTHOR_NAMESPACE", "https://your-namespace.com"),
+        # 用 `or` 而非 getenv 默认值：workflow 透传的 vars 未配置时是空串而非未设置
+        "name": os.getenv("AUTHOR_NAME") or "Your Name",
+        "namespace": os.getenv("AUTHOR_NAMESPACE") or "https://your-namespace.com",
     },
     "registry_file": PROJECT_ROOT / "registry.json",
     "self_scripts_dir": PROJECT_ROOT / "scripts" / "self",

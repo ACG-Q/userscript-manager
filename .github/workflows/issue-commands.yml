@@ -15,6 +15,7 @@ concurrency:
 jobs:
   execute:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # 仅 Issue #1 (命令面板) 触发执行
     if: ${{ !github.event.issue.pull_request && github.event.issue.number == 1 }}
     steps:
@@ -43,14 +44,13 @@ jobs:
       # 以下步骤仅授权用户执行
       - name: Checkout
         if: steps.gate.outputs.authorized == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
 
       - name: Setup Python
         if: steps.gate.outputs.authorized == 'true'
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.11'
           cache: 'pip'
@@ -70,6 +70,8 @@ jobs:
           GITHUB_REF_NAME: ${{ github.ref_name }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           GITHUB_PAGES_URL: ${{ vars.GITHUB_PAGES_URL }}
+          AUTHOR_NAME: ${{ vars.AUTHOR_NAME }}
+          AUTHOR_NAMESPACE: ${{ vars.AUTHOR_NAMESPACE }}
         run: |
           python manager.py
 
