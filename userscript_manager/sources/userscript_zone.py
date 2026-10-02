@@ -1,6 +1,5 @@
-import requests
 from bs4 import BeautifulSoup
-from .base import BaseSourceAdapter, ScriptSource
+from .base import BaseSourceAdapter, ScriptSource, http_get
 
 class UserscriptZoneAdapter(BaseSourceAdapter):
     """Userscript.zone 来源适配器。"""
@@ -16,7 +15,7 @@ class UserscriptZoneAdapter(BaseSourceAdapter):
 
     def fetch(self, url: str) -> ScriptSource:
         """抓取并解析脚本内容，返回 ScriptSource。"""
-        resp = requests.get(url, timeout=15)
+        resp = http_get(url)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
 

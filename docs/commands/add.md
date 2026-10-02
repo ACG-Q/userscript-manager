@@ -119,6 +119,7 @@ console.log('Hello World');
 
 ```
 /add https://raw.githubusercontent.com/user/repo/main/script.user.js
+/add https://github.com/user/repo/raw/main/script.user.js
 ```
 
 ## 输出示例

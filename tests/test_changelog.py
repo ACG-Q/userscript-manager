@@ -87,7 +87,7 @@ class TestChangelog(ConfigIsolation):
                 return new_code
 
         original_get = requests.get
-        requests.get = lambda url, timeout=None: FakeResp()
+        requests.get = lambda url, timeout=None, **kwargs: FakeResp()
         try:
             self._run("/sync sync_cl")
         finally:

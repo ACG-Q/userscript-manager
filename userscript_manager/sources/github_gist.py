@@ -1,6 +1,5 @@
 import re
-import requests
-from .base import BaseSourceAdapter, ScriptSource
+from .base import BaseSourceAdapter, ScriptSource, http_get
 
 
 def pick_gist_file(files: dict) -> tuple[str, dict]:
@@ -40,7 +39,7 @@ class GitHubGistAdapter(BaseSourceAdapter):
             gist_id = self._extract_gist_id(url)
             if gist_id:
                 api_url = f"https://api.github.com/gists/{gist_id}"
-                api_resp = requests.get(api_url, timeout=15)
+                api_resp = http_get(api_url)
                 api_resp.raise_for_status()
                 _name, info = pick_gist_file(api_resp.json().get("files", {}))
                 content = (info or {}).get("content") or ""
@@ -49,7 +48,7 @@ class GitHubGistAdapter(BaseSourceAdapter):
                     raw_url = info.get("raw_url", raw_url)
 
         if raw_code is None:
-            resp = requests.get(raw_url, timeout=15)
+            resp = http_get(raw_url)
             resp.raise_for_status()
             raw_code = resp.text
 

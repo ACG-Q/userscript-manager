@@ -71,7 +71,7 @@ new_body();
 
         original_get = requests.get
 
-        def fake_get(url, timeout=None):
+        def fake_get(url, timeout=None, **kwargs):
             return FakeResp()
 
         requests.get = fake_get

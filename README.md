@@ -142,7 +142,7 @@ Fork 或新建一个仓库，将本项目代码推送上去。
 | GreasyFork | `GreasyForkAdapter` | `https://greasyfork.org/zh-CN/scripts/12345` |
 | Userscript.zone | `UserscriptZoneAdapter` | `https://userscript.zone/scripts/12345` |
 | GitHub Gist | `GitHubGistAdapter` | `https://gist.github.com/user/abc123` |
-| 直接链接 | `DirectUrlAdapter` | `https://raw.githubusercontent.com/.../script.user.js` |
+| 直接链接 | `DirectUrlAdapter` | `https://raw.githubusercontent.com/.../script.user.js`、`https://github.com/<user>/<repo>/raw/<branch>/script.user.js` |
 
 ## 安装脚本
 

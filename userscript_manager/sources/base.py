@@ -3,7 +3,22 @@ from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlparse
 
+import requests
+
 from ..utils import extract_meta_from_code
+
+BROWSER_HEADERS: dict[str, str] = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
+def http_get(url: str, timeout: int = 15) -> requests.Response:
+    """带浏览器请求头的 GET：默认 python-requests UA 会被 GreasyFork 等站点 403 拦截。"""
+    return requests.get(url, timeout=timeout, headers=BROWSER_HEADERS)
 
 @dataclass
 class ScriptSource:
