@@ -2,14 +2,17 @@
 """把 registry.json 单向投影到仓库 Issues（幂等对账式）。"""
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
 import requests
 
+from userscript_manager.discussions import create_discussion, resolve_qa_category
 from userscript_manager.registry import load_registry, save_registry
 from userscript_manager.issue_page import (
+    build_discussion_body, build_discussion_title,
     build_issue_body, build_title, script_id_from_body,
     tombstone_body, tombstone_title,
 )
@@ -76,6 +79,14 @@ mutation($issueId: ID!, $title: String!, $body: String!) {
 CLOSE_MUTATION = """
 mutation($issueId: ID!, $title: String!, $body: String!) {
   updateIssue(input: {id: $issueId, title: $title, body: $body, state: CLOSED}) {
+    issue { id number url }
+  }
+}
+"""
+
+REOPEN_MUTATION = """
+mutation($issueId: ID!, $title: String!, $body: String!) {
+  updateIssue(input: {id: $issueId, title: $title, body: $body, state: OPEN}) {
     issue { id number url }
   }
 }
@@ -151,6 +162,41 @@ def list_all_issues(client, owner: str, name: str) -> list[dict]:
         cursor = conn["pageInfo"]["endCursor"]
 
 
+def ensure_discussion_post(client, script: dict, repo_id: str,
+                           owner: str, name: str, actions: list[str]) -> bool:
+    """版本变化才发帖（账本幂等）；失败打日志不阻断，下轮对账自动补发。
+
+    发帖成功返回 True（调用方据此标脏落盘）；幂等跳过或失败均返回 False。
+    """
+    ledger = script.setdefault("discussions", [])
+    current = script.get("version")
+    if ledger and ledger[-1].get("version") == current:
+        return False
+    prev = ledger[-1].get("version") if ledger else None
+    try:
+        category_id = resolve_qa_category(client, owner, name)
+        created = create_discussion(
+            client, repo_id, category_id,
+            build_discussion_title(script),
+            build_discussion_body(script, prev),
+        )
+    except Exception as e:
+        print(f"⚠️ 版本帖创建失败（下轮对账自动补发）：{e}", file=sys.stderr)
+        return False
+    ledger.append({
+        "version": current,
+        "number": created["number"],
+        "node_id": created["id"],
+        "url": created["url"],
+        "created_at": date.today().isoformat(),
+    })
+    actions.append(
+        f"发布版本帖 v{current or '-'} → #{created['number']}："
+        f"{script.get('name', script['id'])}"
+    )
+    return True
+
+
 def project(client, registry: dict, owner: str, name: str) -> list[str]:
     """对账式投影：创建/更新/回填/墓碑化，返回人类可读的动作日志。
 
@@ -180,7 +226,11 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
             target = by_marker.get(script["id"])
 
         label = script.get("name", script["id"])
+        deleted = bool(script.get("deleted"))
+
         if target is None:
+            if deleted:
+                continue  # 未投影的软删脚本：不新建、不发帖
             created = client.execute(CREATE_MUTATION, {
                 "repositoryId": repo["id"],
                 "title": build_title(script),
@@ -189,19 +239,47 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
             })["createIssue"]["issue"]
             script["issue"] = {"number": created["number"],
                                "node_id": created["id"], "url": created["url"]}
+            tracking = script["issue"]  # 已写入追踪，跳过紧随的回填判断
             dirty = True
             actions.append(f"创建 Issue #{created['number']}：{label}")
-            continue
+            target = {"id": created["id"], "number": created["number"],
+                      "url": created["url"], "title": build_title(script),
+                      "body": build_issue_body(script), "state": "OPEN"}
 
-        expected_title = build_title(script)
-        expected_body = build_issue_body(script)
-        if target["title"] != expected_title or target["body"] != expected_body:
-            client.execute(UPDATE_MUTATION, {
-                "issueId": target["id"],
-                "title": expected_title,
-                "body": expected_body,
-            })
-            actions.append(f"更新 Issue #{target['number']}：{label}")
+        if deleted:
+            expected_title = tombstone_title(build_title(script))
+            expected_body = tombstone_body(script.get("name", script["id"]),
+                                           script.get("discussions"))
+            if (target["title"] != expected_title
+                    or target["body"] != expected_body
+                    or target.get("state") != "CLOSED"):
+                client.execute(CLOSE_MUTATION, {
+                    "issueId": target["id"],
+                    "title": expected_title,
+                    "body": expected_body,
+                })
+                actions.append(f"墓碑化已删除脚本 #{target['number']}：{label}")
+        else:
+            if ensure_discussion_post(client, script, repo["id"],
+                                      owner, name, actions):
+                dirty = True
+            expected_title = build_title(script)
+            expected_body = build_issue_body(script)
+            if target.get("state") == "CLOSED":
+                client.execute(REOPEN_MUTATION, {
+                    "issueId": target["id"],
+                    "title": expected_title,
+                    "body": expected_body,
+                })
+                actions.append(f"重开 Issue #{target['number']}：{label}")
+            elif (target["title"] != expected_title
+                    or target["body"] != expected_body):
+                client.execute(UPDATE_MUTATION, {
+                    "issueId": target["id"],
+                    "title": expected_title,
+                    "body": expected_body,
+                })
+                actions.append(f"更新 Issue #{target['number']}：{label}")
 
         if (tracking.get("node_id") != target["id"]
                 or tracking.get("number") != target["number"]

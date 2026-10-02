@@ -10,38 +10,49 @@ os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
 from userscript_manager.registry import load_registry
-from userscript_manager.issue_page import build_issue_body, build_marker, build_title
-from project_issues import project, list_all_issues
+from userscript_manager.issue_page import (
+    build_issue_body, build_marker, build_title, tombstone_body, tombstone_title,
+)
+from project_issues import project, list_all_issues, list_all_labels, ensure_label_id
 
 
 def make_script(**overrides):
     script = {
-        "id": "abc123", "type": "self", "name": "甲", "version": "1.0.0",
+        "id": "abc123", "type": "self", "name": "甲", "version": "1.0.1",
         "author": "作者", "match": ["*://a/*"], "documentation": "# 文档",
-        "changelog": [{"version": "1.0.0", "date": "2026-10-01", "note": "初始版本"}],
+        "changelog": [{"version": "1.0.1", "date": "2026-10-01", "note": "初始版本"}],
+        "discussions": [{"version": "1.0.1", "number": 9, "node_id": "D_9",
+                         "url": "https://github.com/o/r/discussions/9",
+                         "created_at": "2026-10-01"}],
+        "deleted": False,
     }
     script.update(overrides)
     return script
 
 
 class FakeClient:
-    def __init__(self, issues=None, labels=None, fail_label=False):
+    """投影器测试替身：按查询片段路由，记录创建/更新动作。"""
+    def __init__(self, issues=None, labels=None, fail_label=False, fail_discussion=False):
         self.issues = [dict(d) for d in (issues or [])]
         self.labels = [dict(l) for l in (
             labels if labels is not None else [{"id": "LBL_script", "name": "script"}]
         )]
         self.fail_label = fail_label
+        self.fail_discussion = fail_discussion
         self.label_creates = []
         self.creates = []
         self.updates = []
         self.list_queries = []
+        self.discussion_creates = []
         self._next_number = 100
+        self._next_discussion = 6
 
     def execute(self, query, variables=None):
         variables = variables or {}
         if "labels(first" in query:
-            return {"repository": {"id": "REPO_NODE",
-                    "labels": {"nodes": [dict(l) for l in self.labels]}}}
+            return {"repository": {"labels": {
+                "nodes": [dict(l) for l in self.labels],
+                "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
         if "issues(first" in query:
             self.list_queries.append(query)
             return {"repository": {"issues": {
@@ -65,10 +76,29 @@ class FakeClient:
             self.updates.append({"query": query, "variables": variables})
             return {"updateIssue": {"issue": {"id": variables["issueId"],
                     "number": 0, "url": ""}}}
+        if "discussionCategories" in query:
+            if self.fail_discussion:
+                raise RuntimeError("Discussions 未启用")
+            return {"repository": {"discussionCategories": {
+                "nodes": [{"id": "CAT_qa", "name": "Q&A"}],
+                "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+        if "createDiscussion" in query:
+            if self.fail_discussion:
+                raise RuntimeError("createDiscussion 被拒")
+            self._next_discussion += 1
+            created = {"id": f"D_{self._next_discussion}",
+                       "number": self._next_discussion,
+                       "url": f"https://github.com/o/r/discussions/{self._next_discussion}"}
+            self.discussion_creates.append({"variables": variables, "result": created})
+            return {"createDiscussion": {"discussion": created}}
+        if "repository(owner" in query:
+            # REPO_QUERY：仅取仓库节点 id
+            return {"repository": {"id": "REPO_NODE"}}
         raise AssertionError(f"未知查询: {query!r}")
 
 
 class TestProjector(ConfigIsolation):
+    """投影主流程：创建/更新/幂等/墓碑/label 降级。"""
     TMP_PREFIX = "usm_proj_"
 
     def test_create_when_script_has_no_issue(self):
@@ -167,6 +197,7 @@ class TestProjector(ConfigIsolation):
 
 
 class PagedListClient:
+    """分页 Issue 查询替身：第一页带游标，第二页收尾。"""
     def __init__(self):
         self.calls = 0
 
@@ -185,11 +216,148 @@ class PagedListClient:
 
 
 class TestListPagination(unittest.TestCase):
+    """list_all_issues 游标翻页。"""
     def test_list_all_issues_follows_cursor(self):
         client = PagedListClient()
         out = list_all_issues(client, "o", "r")
         self.assertEqual([d["id"] for d in out], ["I1", "I2"])
         self.assertEqual(client.calls, 2)
+
+
+class PagedLabelsClient:
+    """分页 label 查询替身：script 标签位于第二页。"""
+    def __init__(self):
+        self.calls = 0
+
+    def execute(self, query, variables=None):
+        variables = variables or {}
+        if "labels(first" in query:
+            self.calls += 1
+            if not variables.get("cursor"):
+                return {"repository": {"labels": {
+                    "nodes": [{"id": "LBL_a", "name": "bug"}],
+                    "pageInfo": {"hasNextPage": True, "endCursor": "LC1"}}}}
+            return {"repository": {"labels": {
+                "nodes": [{"id": "LBL_script", "name": "script"}],
+                "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+        raise AssertionError(f"未知查询: {query!r}")
+
+
+class TestLabelPagination(unittest.TestCase):
+    """list_all_labels/ensure_label_id 翻页后仍能找到已有标签。"""
+    def test_labels_follow_cursor_and_find_script_on_page2(self):
+        # script 标签排在第二页时必须翻页找到，不能误判缺失而重复创建
+        client = PagedLabelsClient()
+        labels = list_all_labels(client, "o", "r")
+        self.assertEqual([l["id"] for l in labels], ["LBL_a", "LBL_script"])
+        self.assertEqual(client.calls, 2)
+        self.assertEqual(ensure_label_id(client, "REPO_NODE", labels), "LBL_script")
+
+
+class TestDiscussionPosting(ConfigIsolation):
+    """对账发帖：账本幂等四分支 + 失败降级 + deleted 墓碑 + 复活重开。"""
+    TMP_PREFIX = "usm_proj_dp_"
+
+    def setUp(self):
+        super().setUp()
+        from userscript_manager import discussions
+        discussions._CATEGORY_CACHE.clear()
+
+    def _target(self, script, state="OPEN", title=None, body=None):
+        return {"id": "I_1", "number": 1,
+                "title": title if title is not None else build_title(script),
+                "body": body if body is not None else build_issue_body(script),
+                "url": "u1", "state": state}
+
+    def test_posts_first_version_when_ledger_empty(self):
+        script = make_script(discussions=[],
+                             issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[self._target(script)])
+        actions = project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(len(client.discussion_creates), 1)
+        title = client.discussion_creates[0]["variables"]["title"]
+        self.assertTrue(title.startswith("[v1.0.1]"))
+        self.assertIn("首次发布 **v1.0.1**", client.discussion_creates[0]["variables"]["body"])
+        self.assertEqual(len(script["discussions"]), 1)
+        self.assertEqual(script["discussions"][0]["number"], 7)
+        self.assertTrue(any("发布版本帖" in a for a in actions))
+
+    def test_skips_post_when_ledger_matches_version(self):
+        script = make_script(issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[self._target(script)])
+        project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(client.discussion_creates, [])
+
+    def test_posts_new_entry_on_version_bump(self):
+        script = make_script(version="1.0.2",
+                             issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        script["changelog"] = [{"version": "1.0.2", "date": "2026-10-02", "note": "升级"}]
+        script["discussions"] = [{"version": "1.0.1", "number": 9, "node_id": "D_9",
+                                  "url": "https://github.com/o/r/discussions/9",
+                                  "created_at": "2026-10-01"}]
+        client = FakeClient(issues=[self._target(script)])
+        project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(len(client.discussion_creates), 1)
+        body = client.discussion_creates[0]["variables"]["body"]
+        self.assertIn("自 v1.0.1 更新至 **v1.0.2**：升级", body)
+        self.assertEqual([d["version"] for d in script["discussions"]],
+                         ["1.0.1", "1.0.2"])
+        self.assertEqual(len(client.updates), 1)
+
+    def test_post_failure_logs_and_retries_next_run(self):
+        script = make_script(discussions=[],
+                             issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[self._target(script)], fail_discussion=True)
+        err = io.StringIO()
+        with redirect_stderr(err):
+            project(client, {"scripts": [script]}, "o", "r")
+        self.assertIn("版本帖创建失败", err.getvalue())
+        self.assertEqual(script["discussions"], [])
+        # 恢复后下轮凭「账本空 ≠ 当前版本」自动补发
+        client.fail_discussion = False
+        project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(len(client.discussion_creates), 1)
+        self.assertEqual(len(script["discussions"]), 1)
+
+    def test_deleted_unprojected_script_skipped(self):
+        script = make_script(deleted=True, discussions=[])
+        client = FakeClient()
+        project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(client.creates, [])
+        self.assertEqual(client.discussion_creates, [])
+        self.assertNotIn("issue", script)
+
+    def test_deleted_script_tombstoned_and_closed(self):
+        script = make_script(deleted=True,
+                             issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        client = FakeClient(issues=[self._target(script)])
+        actions = project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(client.discussion_creates, [])
+        self.assertEqual(len(client.updates), 1)
+        self.assertIn("state: CLOSED", client.updates[0]["query"])
+        self.assertTrue(client.updates[0]["variables"]["title"].startswith("[已删除]"))
+        body = client.updates[0]["variables"]["body"]
+        self.assertIn("历史版本帖", body)
+        self.assertIn("[v1.0.1 · #9](https://github.com/o/r/discussions/9)", body)
+        self.assertNotIn("script-id", body)
+        self.assertTrue(any("墓碑" in a for a in actions))
+
+    def test_revive_reopens_issue_without_post(self):
+        script = make_script(deleted=False,
+                             issue={"number": 1, "node_id": "I_1", "url": "u1"})
+        tomb = {"id": "I_1", "number": 1,
+                "title": tombstone_title(build_title(script)),
+                "body": tombstone_body(script["name"], script["discussions"]),
+                "url": "u1", "state": "CLOSED"}
+        client = FakeClient(issues=[tomb])
+        actions = project(client, {"scripts": [script]}, "o", "r")
+        self.assertEqual(client.discussion_creates, [])
+        self.assertEqual(len(client.updates), 1)
+        self.assertIn("state: OPEN", client.updates[0]["query"])
+        self.assertEqual(client.updates[0]["variables"]["title"], build_title(script))
+        self.assertEqual(client.updates[0]["variables"]["body"],
+                         build_issue_body(script))
+        self.assertTrue(any("重开" in a for a in actions))
 
 
 if __name__ == "__main__":
