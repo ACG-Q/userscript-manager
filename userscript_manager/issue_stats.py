@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 log = logging.getLogger(__name__)
 
-_OWNER_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
+OWNER_ASSOCIATIONS = {"OWNER", "MEMBER", "COLLABORATOR"}
 
 _FIELDS = """
 number
@@ -122,7 +122,7 @@ def fetch_stats(
                 author=login,
                 body=raw.get("body") or "",
                 created_at=raw.get("createdAt") or "",
-                is_owner=raw.get("authorAssociation") in _OWNER_ASSOCIATIONS,
+                is_owner=raw.get("authorAssociation") in OWNER_ASSOCIATIONS,
             ))
         stats[sid] = IssueStats(
             number=node.get("number") or 0,
