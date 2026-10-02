@@ -37,7 +37,15 @@
           "note": "初始同步"
         }
       ],
-      "discussions": [],
+      "discussions": [
+        {
+          "version": "1.0.18",
+          "number": 6,
+          "node_id": "D_kwDOU4WJpM4ApuCB",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/6",
+          "created_at": "2026-10-02"
+        }
+      ],
       "deleted": false,
       "issue": {
         "number": 2,
@@ -82,7 +90,15 @@
           "note": "初始同步"
         }
       ],
-      "discussions": [],
+      "discussions": [
+        {
+          "version": "2.6.41",
+          "number": 7,
+          "node_id": "D_kwDOU4WJpM4ApuCC",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/7",
+          "created_at": "2026-10-02"
+        }
+      ],
       "deleted": false,
       "issue": {
         "number": 3,
@@ -126,7 +142,15 @@
           "note": "初始同步"
         }
       ],
-      "discussions": [],
+      "discussions": [
+        {
+          "version": "2.11.4",
+          "number": 8,
+          "node_id": "D_kwDOU4WJpM4ApuCE",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/8",
+          "created_at": "2026-10-02"
+        }
+      ],
       "deleted": false,
       "issue": {
         "number": 4,
@@ -163,7 +187,15 @@
           "note": "初始版本"
         }
       ],
-      "discussions": [],
+      "discussions": [
+        {
+          "version": "1.0.0",
+          "number": 9,
+          "node_id": "D_kwDOU4WJpM4ApuCF",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/9",
+          "created_at": "2026-10-02"
+        }
+      ],
       "deleted": false,
       "issue": {
         "number": 5,
