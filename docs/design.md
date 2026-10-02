@@ -100,7 +100,7 @@ flowchart TB
 | 存储层 | Git 仓库 | 持久化全部状态 | — |
 | 分发层 | GitHub Pages | 对外提供安装/更新地址 | 不做鉴权 |
 
-**关键分层原则**：Python 代码完全不调用 GitHub API（读评论、回评论、删评论全部由工作流的 bash 步骤用 `gh` 完成），因此业务层可以在本地完整跑通和测试。
+**关键分层原则**：命令核心（评论解析与执行）不直接调用 GitHub API——读评论、回评论、删评论全部由工作流的 bash 步骤用 `gh` 完成，因此业务层可以在本地完整跑通和测试。仓库中仅三处例外主动调 API：`project_issues.py` 的 Issue 投影、Gist 适配器取源码、`build_pages.py` 抓取讨论统计。
 
 ## 4. 数据模型
 
@@ -344,12 +344,12 @@ command_result.txt                               # 回帖内容（gitignore，�
 | 无并发保护 | 短时间连发命令可能 push 冲突，后者静默失败 | 已修复：issue-commands.yml 加 concurrency 组 |
 | 单用户权限 | Collaborator 无法使用 | 权限模型设计如此，待定 |
 | 同步脚本只读 | 不能本地改同步脚本 | 设计如此，保证上游比对可靠 |
-| `sync_enabled` 无消费者 | 自动同步开关目前没有定时任务消费 | 计划补 cron 工作流或删除字段 |
+| `sync_enabled` 无消费者 | 自动同步开关没有定时任务消费 | 已修复：`/sync-all` 按该字段过滤，`sync-scheduled.yml` 提供可选定时任务（默认手动触发） |
 | 自写脚本头部重建 | `@require` 等未提取字段在 dist 中丢失 | 已修复：build_userscript_header 改为保留原头部，只注入安装地址与版本 |
 
 ## 13. 三门面架构（真源 + 投影）
 
-系统对外有三个门面，全部由 Git 仓库这一真源单向投影而来（完整设计见 `docs/superpowers/specs/2026-10-01-three-facades-design.md`）：
+系统对外有三个门面，全部由 Git 仓库这一真源单向投影而来：
 
 | 门面 | 承载设施 | 投影方式 |
 |------|---------|---------|

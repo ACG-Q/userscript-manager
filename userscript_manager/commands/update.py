@@ -3,7 +3,7 @@ from ..registry import save_registry, find_script
 from ..utils import (
     build_userscript_header, extract_meta_from_code, increment_version,
     write_dist_file, write_source_file, save_documentation, now_iso,
-    add_changelog
+    add_changelog, format_js_code
 )
 from ..commands import register
 from ..issue_parser import remove_code_blocks
@@ -21,7 +21,9 @@ def execute(registry, args, code, markdown, has_code_block):
         return f"❌ 未找到 ID 为 {args} 的脚本。"
     if script["type"] != "self":
         return f"❌ ID {args} 不是自写脚本，无法更新。同步脚本请使用 /sync {args}"
-    
+
+    # 自写脚本入库前统一格式化（同步脚本保持上游原文，见 design.md 6.3）
+    code = format_js_code(code)
     meta = extract_meta_from_code(code)
     
     # Update script metadata from new code

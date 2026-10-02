@@ -166,13 +166,13 @@ Fork 或新建一个仓库，将本项目代码推送上去。
 
 ### 启用定时同步
 
-在 `.github/workflows/issue-commands.yml` 中添加 schedule（或单独建一个 workflow）：
+仓库自带可选工作流 `.github/workflows/sync-scheduled.yml`：默认仅手动触发（Actions → Scheduled Sync → Run workflow）；要每周自动同步，取消其中 `schedule` 的注释即可：
 
 ```yaml
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 3 * * 1'  # 每周一 UTC 3 点
-  workflow_dispatch:
 ```
 
 ### 自定义域名

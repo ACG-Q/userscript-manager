@@ -4,7 +4,7 @@ from ..utils import (
     build_userscript_header, build_dist_for_synced, extract_meta_from_code,
     generate_self_script_id, generate_synced_script_id,
     write_dist_file, write_source_file, ensure_dirs, save_documentation, now_iso,
-    add_changelog
+    add_changelog, format_js_code
 )
 from ..sources import get_adapter
 from ..commands import register
@@ -29,6 +29,8 @@ def add_self(registry, code, markdown, has_code_block):
         )
     
     script_id = generate_self_script_id()
+    # 自写脚本入库前统一格式化（同步脚本保持上游原文，见 design.md 6.3）
+    code = format_js_code(code)
     meta = extract_meta_from_code(code)
     name = meta.get("name", f"Script-{script_id[:8]}")
     

@@ -1,0 +1,88 @@
+name: Scheduled Sync
+
+# 可选的第三方脚本定时同步。默认仅手动触发（workflow_dispatch）；
+# 取消下方 schedule 注释即启用每周自动同步。
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: '0 3 * * 1'  # 每周一 UTC 3 点
+
+permissions:
+  contents: write
+  issues: write
+  actions: write
+
+concurrency:
+  group: scheduled-sync
+  cancel-in-progress: false
+
+jobs:
+  sync-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 复用 manager 的 /sync-all 命令路径：仓库拥有者身份由本 workflow 自身注入
+      - name: Run /sync-all
+        env:
+          COMMENT_BODY: /sync-all
+          COMMENT_USER: ${{ github.repository_owner }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          ISSUE_NUMBER: 1
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_PAGES_URL: ${{ vars.GITHUB_PAGES_URL }}
+          AUTHOR_NAME: ${{ vars.AUTHOR_NAME }}
+          AUTHOR_NAMESPACE: ${{ vars.AUTHOR_NAMESPACE }}
+        run: python manager.py
+
+      - name: Project issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if PROJ_OUT=$(python project_issues.py 2>&1); then
+            echo "$PROJ_OUT"
+          else
+            echo "⚠️ Issue 投影失败（真源已保存，下次执行时自动重试对账）"
+            echo "$PROJ_OUT"
+          fi
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          if git diff --staged --quiet; then
+            echo "无更新"
+          else
+            git commit -m "chore: 同步第三方脚本"
+            git push
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # GITHUB_TOKEN 的 push 不触发 workflow，显式派发站点部署
+      - name: Trigger site deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh workflow run deploy-pages.yml -R ${{ github.repository }}; then
+            echo "⚠️ 站点部署派发失败（不阻断），可手动触发 Deploy 工作流"
+          fi
+
+      - name: Show command result
+        run: |
+          if [ -f command_result.txt ]; then
+            cat command_result.txt
+          fi

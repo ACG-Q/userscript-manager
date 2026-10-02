@@ -33,7 +33,7 @@
 - 使用 URL 的 MD5 哈希（前12位）作为脚本 ID
 - 仅修改 `@downloadURL` 和 `@updateURL` 指向本仓库 Pages
 - 原始代码保持不变，保存到 `scripts/synced/<id>/`
-- 自动启用定时同步（可通过 `/sync` 手动触发）
+- 更新可通过 `/sync <id>` 手动触发；如需定时同步，启用 `.github/workflows/sync-scheduled.yml`（见 README「启用定时同步」）
 
 ## 示例
 
