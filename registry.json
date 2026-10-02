@@ -44,6 +44,51 @@
         "node_id": "I_kwDOU4WJpM8AAAABUm70JA",
         "url": "https://github.com/ACG-Q/userscript-manager/issues/2"
       }
+    },
+    {
+      "id": "809d5f149376",
+      "type": "synced",
+      "name": "Github Enhancement - High Speed Download",
+      "version": "2.6.41",
+      "description": "High-speed download of Git Clone/SSH, Release, Raw, Code(ZIP) and other files (Based on public welfare), project list file quick download (☁)",
+      "author": "X.I.U",
+      "namespace": "https://greasyfork.org/scripts/412245",
+      "match": [
+        "*://github.com/*",
+        "*://bgithub.xyz/*"
+      ],
+      "grant": [
+        "GM_registerMenuCommand",
+        "GM_unregisterMenuCommand",
+        "GM_openInTab",
+        "GM_getValue",
+        "GM_setValue",
+        "GM_notification",
+        "GM_setClipboard",
+        "window.onurlchange"
+      ],
+      "enabled": true,
+      "source_url": "https://github.com/XIU2/UserScript/raw/refs/heads/master/GithubEnhanced-High-Speed-Download.user.js",
+      "source_type": "github_raw",
+      "created_at": "2026-10-02T13:19:01.578951Z",
+      "updated_at": "2026-10-02T13:19:01.578971Z",
+      "last_synced_at": "2026-10-02T13:19:01.578974Z",
+      "sync_enabled": true,
+      "documentation": "",
+      "changelog": [
+        {
+          "version": "2.6.41",
+          "date": "2026-10-02",
+          "note": "初始同步"
+        }
+      ],
+      "discussions": [],
+      "deleted": false,
+      "issue": {
+        "number": 3,
+        "node_id": "I_kwDOU4WJpM8AAAABUm8e3g",
+        "url": "https://github.com/ACG-Q/userscript-manager/issues/3"
+      }
     }
   ]
 }
