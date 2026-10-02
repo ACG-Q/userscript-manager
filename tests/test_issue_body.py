@@ -25,7 +25,6 @@ def make_script(**overrides):
 
 
 class TestIssueBody(ConfigIsolation):
-    """Issue 正文生成：标记往返、转义、文档与 changelog 渲染。"""
     REDIRECT_PATHS = False
 
     def test_marker_is_first_line_and_roundtrips(self):

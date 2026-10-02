@@ -27,7 +27,6 @@ body();
 
 
 class TestChangelog(ConfigIsolation):
-    """changelog 行为：新行在前、add/up/sync 各路径写入正确。"""
     TMP_PREFIX = "usm_cl_"
 
     def _config_setup(self):
@@ -71,7 +70,7 @@ class TestChangelog(ConfigIsolation):
             "source_type": "direct",
             "sync_enabled": True, "created_at": "2026-01-01T00:00:00Z",
             "updated_at": "2026-01-01T00:00:00Z", "last_synced_at": "2026-01-01T00:00:00Z",
-            "documentation": "",
+            "custom_match": None, "documentation": "",
         }
         self.registry["scripts"].append(script)
         save_registry(self.registry)

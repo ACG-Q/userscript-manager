@@ -14,7 +14,6 @@ from userscript_manager.registry import load_registry, save_registry, RegistryEr
 
 
 class TestRegistry(ConfigIsolation):
-    """registry 读写：损坏报错、原子落盘、结构校验。"""
     TMP_PREFIX = "usm_reg_"
 
     def test_missing_file_returns_empty_registry(self):

@@ -6,9 +6,7 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 from tests._helpers import ConfigIsolation
-from userscript_manager.issue_parser import (
-    parse_comment, extract_first_code_block, extract_all_code_blocks,
-)
+from userscript_manager.issue_parser import parse_comment, extract_first_code_block, extract_all_code_blocks
 from userscript_manager.utils import (
     extract_meta_from_code, strip_header, increment_version, build_dist_for_synced,
     build_userscript_header,
@@ -16,7 +14,6 @@ from userscript_manager.utils import (
 
 
 class TestIssueParser(unittest.TestCase):
-    """评论解析：命令/参数/代码块提取与归一化。"""
     def test_simple_command(self):
         p = parse_comment("/list")
         self.assertEqual(p.command, "list")
@@ -54,15 +51,10 @@ class TestIssueParser(unittest.TestCase):
 
 
 class TestUtils(ConfigIsolation):
-    """工具函数：元数据提取、版本自增、头部/URL 处理。"""
     REDIRECT_PATHS = False
 
     def test_extract_meta(self):
-        code = (
-            "// ==UserScript==\n// @name My Script\n// @version 2.0.0\n"
-            "// @match *://a.com/*\n// @match *://b.com/*\n"
-            "// @grant GM_xmlhttpRequest\n// ==/UserScript==\nbody()"
-        )
+        code = "// ==UserScript==\n// @name My Script\n// @version 2.0.0\n// @match *://a.com/*\n// @match *://b.com/*\n// @grant GM_xmlhttpRequest\n// ==/UserScript==\nbody()"
         meta = extract_meta_from_code(code)
         self.assertEqual(meta["name"], "My Script")
         self.assertEqual(meta["version"], "2.0.0")
@@ -97,11 +89,7 @@ class TestUtils(ConfigIsolation):
         self.assertEqual(meta.get("version"), "1.2.3")
 
     def test_build_dist_for_synced_rewrites_urls(self):
-        original = (
-            "// ==UserScript==\n// @name X\n// @downloadURL https://old.example/x.js\n"
-            "// @updateURL https://old.example/x.js\n// @match *://*/*\n"
-            "// ==/UserScript==\nfn();\n"
-        )
+        original = "// ==UserScript==\n// @name X\n// @downloadURL https://old.example/x.js\n// @updateURL https://old.example/x.js\n// @match *://*/*\n// ==/UserScript==\nfn();\n"
         script_meta = {"id": "abc123"}
         out = build_dist_for_synced(script_meta, original)
         self.assertIn("https://testuser.github.io/testrepo/dist/abc123.user.js", out)

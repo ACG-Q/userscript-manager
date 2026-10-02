@@ -8,9 +8,7 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
-from userscript_manager.utils import (
-    build_userscript_header, ensure_userscript_urls, sync_header_version,
-)
+from userscript_manager.utils import build_userscript_header, ensure_userscript_urls, sync_header_version
 
 FULL_HEADER = """// ==UserScript==
 // @name         甲
@@ -26,7 +24,6 @@ main();
 
 
 class TestHeaderPreservation(ConfigIsolation):
-    """头部保留：@require/@run-at 等字段不被同步流程改写。"""
     REDIRECT_PATHS = False
 
     def test_require_run_at_icon_exclude_preserved(self):

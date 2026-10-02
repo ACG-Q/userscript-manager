@@ -1,62 +1,48 @@
 import io
 import os
 import sys
-import tempfile
 import unittest
-from pathlib import Path
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
+from tests._helpers import ConfigIsolation, FRESH_REGISTRY
 from userscript_manager.config import CONFIG
 from userscript_manager.commands import _commands
 
 import manager
 
 _ENV_KEYS = ("COMMENT_BODY", "COMMENT_USER", "REPO_OWNER", "ISSUE_NUMBER")
-_CFG_KEYS = (
-    "registry_file",
-    "self_scripts_dir",
-    "synced_scripts_dir",
-    "dist_dir",
-    "github_repo",
-)
 
 
-class TestManagerFlow(unittest.TestCase):
+class TestManagerFlow(ConfigIsolation):
     """manager.main 的每条早退路径都必须落结果文件，否则 Actions 会误报「操作完成」。"""
 
+    TMP_PREFIX = "usm_mgr_"
+
+    def _config_setup(self):
+        CONFIG["registry_file"].write_text(FRESH_REGISTRY, encoding="utf-8")
+
     def setUp(self):
+        super().setUp()
         self._saved_env = {k: os.environ.get(k) for k in _ENV_KEYS}
         self._saved_cwd = os.getcwd()
-        self._saved_cfg = {k: CONFIG[k] for k in _CFG_KEYS}
-        self._saved_base_url = CONFIG["github_pages"]["base_url"]
-        self._tmp = Path(tempfile.mkdtemp(prefix="usm_mgr_"))
         os.chdir(self._tmp)
-        CONFIG["registry_file"] = self._tmp / "registry.json"
-        CONFIG["self_scripts_dir"] = self._tmp / "scripts" / "self"
-        CONFIG["synced_scripts_dir"] = self._tmp / "scripts" / "synced"
-        CONFIG["dist_dir"] = self._tmp / "dist"
-        CONFIG["github_repo"] = "testuser/testrepo"
-        CONFIG["github_pages"]["base_url"] = ""
-        CONFIG["registry_file"].write_text(
-            '{"schema": 1, "scripts": []}', encoding="utf-8"
-        )
         self._result_file = self._tmp / "command_result.txt"
         if self._result_file.exists():
             self._result_file.unlink()
 
     def tearDown(self):
-        for key, value in self._saved_env.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
-        os.chdir(self._saved_cwd)
-        for key, value in self._saved_cfg.items():
-            CONFIG[key] = value
-        CONFIG["github_pages"]["base_url"] = self._saved_base_url
-        _commands.pop("boom", None)
+        try:
+            for key, value in self._saved_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+            os.chdir(self._saved_cwd)
+            _commands.pop("boom", None)
+        finally:
+            super().tearDown()
 
     def _run(self, body, user="owner", owner="owner", issue=""):
         os.environ["COMMENT_BODY"] = body
@@ -99,6 +85,25 @@ class TestManagerFlow(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertIn("内部错误", result)
         self.assertIn("boom", result)
+
+    def test_non_panel_issue_is_ignored(self):
+        result = self._run("/list", issue="2")
+        self.assertIsNotNone(result)
+        self.assertIn("非命令面板", result)
+
+    def test_invalid_issue_number_is_reported(self):
+        result = self._run("/list", issue="abc")
+        self.assertIsNotNone(result)
+        self.assertIn("无效的 ISSUE_NUMBER", result)
+
+    def test_all_expected_commands_registered(self):
+        from userscript_manager.commands import get_all_commands
+
+        expected = {
+            "list", "add", "up", "sync", "sync-all", "rm",
+            "info", "enable", "disable", "export",
+        }
+        self.assertEqual(expected, set(get_all_commands()))
 
 
 if __name__ == "__main__":

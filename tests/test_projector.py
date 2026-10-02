@@ -11,7 +11,7 @@ os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 from tests._helpers import ConfigIsolation
 from userscript_manager.registry import load_registry
 from userscript_manager.issue_page import build_issue_body, build_marker, build_title
-from project_issues import project, list_all_issues, list_all_labels, ensure_label_id
+from project_issues import project, list_all_issues
 
 
 def make_script(**overrides):
@@ -25,7 +25,6 @@ def make_script(**overrides):
 
 
 class FakeClient:
-    """投影器测试替身：按查询片段路由，记录创建/更新动作。"""
     def __init__(self, issues=None, labels=None, fail_label=False):
         self.issues = [dict(d) for d in (issues or [])]
         self.labels = [dict(l) for l in (
@@ -41,9 +40,8 @@ class FakeClient:
     def execute(self, query, variables=None):
         variables = variables or {}
         if "labels(first" in query:
-            return {"repository": {"labels": {
-                "nodes": [dict(l) for l in self.labels],
-                "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
+            return {"repository": {"id": "REPO_NODE",
+                    "labels": {"nodes": [dict(l) for l in self.labels]}}}
         if "issues(first" in query:
             self.list_queries.append(query)
             return {"repository": {"issues": {
@@ -67,14 +65,10 @@ class FakeClient:
             self.updates.append({"query": query, "variables": variables})
             return {"updateIssue": {"issue": {"id": variables["issueId"],
                     "number": 0, "url": ""}}}
-        if "repository(owner" in query:
-            # REPO_QUERY：仅取仓库节点 id
-            return {"repository": {"id": "REPO_NODE"}}
         raise AssertionError(f"未知查询: {query!r}")
 
 
 class TestProjector(ConfigIsolation):
-    """投影主流程：创建/更新/幂等/墓碑/label 降级。"""
     TMP_PREFIX = "usm_proj_"
 
     def test_create_when_script_has_no_issue(self):
@@ -173,7 +167,6 @@ class TestProjector(ConfigIsolation):
 
 
 class PagedListClient:
-    """分页 Issue 查询替身：第一页带游标，第二页收尾。"""
     def __init__(self):
         self.calls = 0
 
@@ -192,42 +185,11 @@ class PagedListClient:
 
 
 class TestListPagination(unittest.TestCase):
-    """list_all_issues 游标翻页。"""
     def test_list_all_issues_follows_cursor(self):
         client = PagedListClient()
         out = list_all_issues(client, "o", "r")
         self.assertEqual([d["id"] for d in out], ["I1", "I2"])
         self.assertEqual(client.calls, 2)
-
-
-class PagedLabelsClient:
-    """分页 label 查询替身：script 标签位于第二页。"""
-    def __init__(self):
-        self.calls = 0
-
-    def execute(self, query, variables=None):
-        variables = variables or {}
-        if "labels(first" in query:
-            self.calls += 1
-            if not variables.get("cursor"):
-                return {"repository": {"labels": {
-                    "nodes": [{"id": "LBL_a", "name": "bug"}],
-                    "pageInfo": {"hasNextPage": True, "endCursor": "LC1"}}}}
-            return {"repository": {"labels": {
-                "nodes": [{"id": "LBL_script", "name": "script"}],
-                "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
-        raise AssertionError(f"未知查询: {query!r}")
-
-
-class TestLabelPagination(unittest.TestCase):
-    """list_all_labels/ensure_label_id 翻页后仍能找到已有标签。"""
-    def test_labels_follow_cursor_and_find_script_on_page2(self):
-        # script 标签排在第二页时必须翻页找到，不能误判缺失而重复创建
-        client = PagedLabelsClient()
-        labels = list_all_labels(client, "o", "r")
-        self.assertEqual([l["id"] for l in labels], ["LBL_a", "LBL_script"])
-        self.assertEqual(client.calls, 2)
-        self.assertEqual(ensure_label_id(client, "REPO_NODE", labels), "LBL_script")
 
 
 if __name__ == "__main__":

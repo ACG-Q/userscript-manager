@@ -1,5 +1,4 @@
 import json
-from ..registry import load_registry
 from ..config import get_install_url
 from ..commands import register
 

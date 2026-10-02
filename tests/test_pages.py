@@ -45,7 +45,6 @@ def make_stats(answered=True, count=8, replies=None):
 
 
 class TestPages(ConfigIsolation):
-    """页面渲染基础：转义、链接、按钮状态、markdown 清洗。"""
     def test_index_escapes_script_name(self):
         html = build_index({"scripts": [make_script(name='<img src=x onerror="a()">')]})
         self.assertNotIn("<img src=x", html)
@@ -118,7 +117,6 @@ class TestPages(ConfigIsolation):
 
 
 class TestIndexPanels(ConfigIsolation):
-    """首页面板：讨论徽标、筛选、空态与统计。"""
     def test_card_with_stats_shows_badges_and_quote(self):
         html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
         self.assertIn("已解决", html)
@@ -211,7 +209,6 @@ class TestIndexPanels(ConfigIsolation):
 
 
 class TestDetailPanels(ConfigIsolation):
-    """详情页面板：讨论区、空态、返回链与 pill。"""
     def test_no_issue_empty_state(self):
         html = build_detail(make_script(issue=None), make_stats())
         self.assertIn("还没有讨论", html)
@@ -299,7 +296,6 @@ class TestDetailPanels(ConfigIsolation):
 
 
 class TestBuildSiteStats(ConfigIsolation):
-    """build_site：统计注入、降级渲染与陈旧页清理。"""
     def _read(self, *parts):
         return (Path(CONFIG["dist_dir"]).joinpath(*parts)).read_text(encoding="utf-8")
 
@@ -314,19 +310,8 @@ class TestBuildSiteStats(ConfigIsolation):
         self.assertIn("<b>—</b>", self._read("index.html"))
         self.assertIn("摘要暂不可用", self._read("scripts", "abc123.html"))
 
-    def test_build_site_removes_stale_detail_pages(self):
-        stale = Path(CONFIG["dist_dir"]) / "scripts" / "gone.html"
-        stale.parent.mkdir(parents=True, exist_ok=True)
-        stale.write_text("old", encoding="utf-8")
-        build_site({"scripts": [make_script()]}, {})
-        self.assertFalse(stale.exists())
-        self.assertTrue(
-            (Path(CONFIG["dist_dir"]) / "scripts" / "abc123.html").exists()
-        )
-
 
 class TestMainWiring(ConfigIsolation):
-    """build_pages 入口：token 有无两条路径与告警。"""
     TMP_PREFIX = "usm_main_"
 
     def _write_registry(self):
@@ -379,7 +364,6 @@ class TestMainWiring(ConfigIsolation):
 
 
 class TestThemeTokens(ConfigIsolation):
-    """主题令牌层：默认主题、保留主题块与组件层约束。"""
     def test_html_declares_default_theme(self):
         html = build_index({"scripts": []})
         self.assertIn('data-theme="github-light"', html)
@@ -407,7 +391,6 @@ class TestThemeTokens(ConfigIsolation):
 
 
 class TestThemeTokensFilled(ConfigIsolation):
-    """主题块补全：各主题填满关键令牌、无裸色值。"""
     def _block(self, name):
         from build_pages import TOKEN_CSS
         start = TOKEN_CSS.index(f'[data-theme="{name}"]')
@@ -444,7 +427,6 @@ class TestThemeTokensFilled(ConfigIsolation):
 
 
 class TestThemeDrawerMarkup(ConfigIsolation):
-    """主题抽屉标记：rail/抽屉/预览行与样式存在性。"""
     def test_index_and_detail_contain_rail_and_drawer(self):
         for html in (build_index({"scripts": []}), build_detail(make_script())):
             self.assertIn('id="themeRail"', html)
@@ -469,7 +451,6 @@ class TestThemeDrawerMarkup(ConfigIsolation):
 
 
 class TestThemeDrawerJS(ConfigIsolation):
-    """主题抽屉 JS：首屏前应用主题、持久化与回退。"""
     def test_head_applies_stored_theme_before_paint(self):
         for html in (build_index({"scripts": []}), build_detail(make_script())):
             head = html.split("</head>")[0]

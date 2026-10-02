@@ -1,3 +1,4 @@
+import os
 import sys
 import io
 import unittest
@@ -16,7 +17,6 @@ import userscript_manager.commands.update
 
 
 class TestSyncPersistence(ConfigIsolation):
-    """同步落盘：版本变更写回、拒绝非油猴内容。"""
     TMP_PREFIX = "usm_sync_"
 
     def _config_setup(self):
@@ -43,12 +43,14 @@ class TestSyncPersistence(ConfigIsolation):
             "updated_at": "2026-01-01T00:00:00Z",
             "last_synced_at": "2026-01-01T00:00:00Z",
             "sync_enabled": True,
+            "custom_match": None,
             "documentation": "",
         }
         self.registry["scripts"].append(script_meta)
         save_registry(self.registry)
 
-        # Patch requests.get to return a newer version
+        # Patch the adapter fetch to return a newer version
+        from userscript_manager.sources import direct_url
         import requests
 
         original_code = """// ==UserScript==
@@ -105,6 +107,7 @@ new_body();
             "updated_at": "2026-01-01T00:00:00Z",
             "last_synced_at": None,
             "sync_enabled": True,
+            "custom_match": None,
             "documentation": "",
         }
         self.registry["scripts"].append(script_meta)
