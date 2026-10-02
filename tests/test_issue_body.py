@@ -71,6 +71,10 @@ class TestIssueBody(ConfigIsolation):
         self.assertIn(
             "| 来源 | greasyfork · [来源页](https://greasyfork.org/zh-CN/scripts/1234) |",
             body)
+        piped = build_issue_body(make_script(
+            source_url="https://x.example/p|q", source_type="greasyfork"))
+        self.assertIn("p\\|q", piped)
+        self.assertNotIn("||", piped)
 
     def test_empty_index_placeholder(self):
         body = build_issue_body(make_script())
@@ -122,6 +126,20 @@ class TestIssueBody(ConfigIsolation):
         body = tombstone_body("甲")
         self.assertNotIn("历史版本帖", body)
 
+    def test_index_tolerates_incomplete_discussion_entry(self):
+        script = make_script(discussions=[
+            {"version": "1.0.0", "number": 3},
+            {"version": "0.9"},
+        ])
+        seg = build_issue_body(script).split("## 版本讨论帖", 1)[1]
+        self.assertIn("| v1.0.0 | - | 讨论 #3 |", seg)
+        self.assertIn("| v0.9 | - | - |", seg)
+        tomb = tombstone_body("甲", [{"version": "0.9"}])
+        self.assertNotIn("v0.9", tomb)
+        tomb2 = tombstone_body("甲", [{"version": "1.0", "number": 3}])
+        self.assertIn("- v1.0 · #3", tomb2)
+        self.assertNotIn("]()", tomb2)
+
     def test_build_issue_index_empty_states(self):
         self.assertEqual(build_issue_index([]), "| - | - | 暂无版本帖 |")
 
@@ -162,6 +180,17 @@ class TestDiscussionPost(ConfigIsolation):
         self.assertIn(
             "[Issue #5（状态与索引）](https://github.com/testuser/testrepo/issues/5)",
             body)
+        self.assertIn(
+            "[脚本详情页](https://testuser.github.io/testrepo/scripts/abc123.html)",
+            body)
+
+    def test_body_empty_changelog_missing_docs_and_issue(self):
+        body = build_discussion_body(
+            make_script(changelog=[], documentation="", issue={"number": 5}),
+            prev_version=None)
+        self.assertIn("| - | - | 暂无更新记录 |", body)
+        self.assertIn("_暂无文档_", body)
+        self.assertNotIn("（状态与索引）", body)
         self.assertIn(
             "[脚本详情页](https://testuser.github.io/testrepo/scripts/abc123.html)",
             body)

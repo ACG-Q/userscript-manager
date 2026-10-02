@@ -49,25 +49,35 @@ def _source_cell(script: dict) -> str:
     if not url:
         return "自写（本仓库）"
     stype = escape_md_cell(script.get("source_type") or "外部来源")
-    return f"{stype} · [来源页]({url})"
+    return f"{stype} · [来源页]({escape_md_cell(url)})"
 
 
 def build_issue_index(discussions: list) -> str:
-    """版本帖索引表体：倒序累积，空列表返回占位行。"""
+    """版本帖索引表体：倒序累积，空列表返回占位行；残缺条目降级不抛错。"""
     if not discussions:
         return "| - | - | 暂无版本帖 |"
     rows = []
     for d in reversed(discussions):
         version = escape_md_cell(f"v{d['version']}" if d.get("version") else "-")
+        num, url = d.get("number"), d.get("url")
+        if num and url:
+            link = f"[讨论 #{num} →]({url})"
+        elif num:
+            link = f"讨论 #{num}"
+        else:
+            link = "-"
         rows.append(
             f"| {version} | {escape_md_cell(d.get('created_at') or '-')} "
-            f"| [讨论 #{d['number']} →]({d['url']}) |"
+            f"| {link} |"
         )
     return "\n".join(rows)
 
 
 def tombstone_body(name: str, discussions: list | None = None) -> str:
-    """墓碑正文：保留历史讨论的说明 + 历史版本帖回链（不携带 script-id 标记）。"""
+    """墓碑正文：保留历史讨论的说明 + 历史版本帖回链（不携带 script-id 标记）。
+
+    无 number 的残缺条目无法回链，直接跳过该行。
+    """
     lines = [
         f"> ⚠️ 脚本 `{escape_md_cell(name)}` 已从仓库删除。"
         "本页保留历史讨论，不再更新。"
@@ -75,8 +85,14 @@ def tombstone_body(name: str, discussions: list | None = None) -> str:
     if discussions:
         lines += ["", "**历史版本帖：**", ""]
         for d in reversed(discussions):
+            num, url = d.get("number"), d.get("url")
+            if not num:
+                continue
             tag = f"v{d['version']}" if d.get("version") else "-"
-            lines.append(f"- [{tag} · #{d['number']}]({d['url']})")
+            if url:
+                lines.append(f"- [{tag} · #{num}]({url})")
+            else:
+                lines.append(f"- {tag} · #{num}")
     return "\n".join(lines) + "\n"
 
 
@@ -182,10 +198,8 @@ def build_discussion_body(script: dict, prev_version: str | None = None) -> str:
 
     backlinks = []
     issue = script.get("issue") or {}
-    if issue.get("number"):
-        backlinks.append(
-            f"[Issue #{issue['number']}（状态与索引）]({issue.get('url', '')})"
-        )
+    if issue.get("number") and issue.get("url"):
+        backlinks.append(f"[Issue #{issue['number']}（状态与索引）]({issue['url']})")
     backlinks.append(f"[脚本详情页]({get_pages_base_url()}/scripts/{sid}.html)")
     lines += ["", "---", "", " · ".join(backlinks), ""]
     return "\n".join(lines)

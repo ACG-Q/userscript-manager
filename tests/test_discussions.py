@@ -40,13 +40,16 @@ class FakeClient:
             return {"discussion": {
                 "title": "帖子", "url": "https://github.com/u/r/discussions/7",
                 "isAnswered": True,
-                "comments": {"nodes": [
+                "comments": {"totalCount": 2, "nodes": [
                     {"author": {"login": "访客"}, "authorAssociation": "NONE",
                      "body": "问题", "createdAt": "2026-10-01T00:00:00Z", "isAnswer": False,
-                     "replies": {"nodes": [
+                     "replies": {"totalCount": 1, "nodes": [
                          {"author": {"login": "作者"}, "authorAssociation": "OWNER",
                           "body": "回复", "createdAt": "2026-10-01T01:00:00Z",
                           "isAnswer": True}]}},
+                    {"author": None, "authorAssociation": "NONE",
+                     "body": "匿名", "createdAt": "2026-10-02T00:00:00Z",
+                     "isAnswer": False},
                 ]}}}
         raise AssertionError(f"未知查询: {query!r}")
 
@@ -144,18 +147,39 @@ class TestCreateAndFetch(unittest.TestCase):
         self.assertEqual(d["url"], "https://github.com/u/r/discussions/7")
         self.assertEqual(client.created[0]["variables"]["categoryId"], "CAT_qa")
         self.assertEqual(client.created[0]["variables"]["title"], "[v1.0.0] 甲 2026-10-02")
+        self.assertEqual(client.created[0]["variables"]["repositoryId"], "REPO_NODE")
+        self.assertEqual(client.created[0]["variables"]["body"], "正文")
+
+    def test_client_failure_propagates(self):
+        from userscript_manager import discussions
+        discussions._CATEGORY_CACHE.clear()
+        with self.assertRaises(RuntimeError) as ctx:
+            resolve_qa_category(FakeClient(fail=True), "u", "r")
+        self.assertIn("network down", str(ctx.exception))
 
     def test_fetch_comments_with_replies(self):
         client = FakeClient()
         node = fetch_discussion_comments(client, "D_7")
+        self.assertEqual(node["title"], "帖子")
+        self.assertEqual(node["url"], "https://github.com/u/r/discussions/7")
+        self.assertEqual(node["comment_total"], 2)
         self.assertTrue(node["is_answered"])
-        self.assertEqual(len(node["comments"]), 1)
+        self.assertEqual(len(node["comments"]), 2)
         top = node["comments"][0]
         self.assertEqual(top["author"], "访客")
         self.assertFalse(top["is_owner"])
+        self.assertEqual(top["body"], "问题")
+        self.assertEqual(top["created_at"], "2026-10-01T00:00:00Z")
+        self.assertFalse(top["is_answer"])
         self.assertEqual(len(top["replies"]), 1)
         self.assertEqual(top["replies"][0]["author"], "作者")
         self.assertTrue(top["replies"][0]["is_owner"])
+        self.assertEqual(top["replies"][0]["body"], "回复")
+        self.assertEqual(top["replies"][0]["created_at"], "2026-10-01T01:00:00Z")
+        self.assertTrue(top["replies"][0]["is_answer"])
+        anon = node["comments"][1]
+        self.assertEqual(anon["author"], "未知用户")
+        self.assertEqual(anon["body"], "匿名")
 
     def test_fetch_missing_node_returns_none(self):
         class EmptyClient:
