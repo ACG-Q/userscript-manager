@@ -162,7 +162,7 @@
       "id": "3f45ee3c-4669-41aa-aa27-0fceff6d2f06",
       "type": "self",
       "name": "我的去广告脚本",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "",
       "author": "Your Name",
       "namespace": "https://your-namespace.com",
@@ -174,13 +174,18 @@
       ],
       "enabled": true,
       "created_at": "2026-10-02T13:22:54.597211Z",
-      "updated_at": "2026-10-02T13:22:54.597227Z",
+      "updated_at": "2026-10-02T13:33:46.312992Z",
       "source_url": null,
       "source_type": null,
       "last_synced_at": null,
       "sync_enabled": false,
       "documentation": "# 我的去广告脚本\n\n```javascript\n// ==UserScript==\n// @name 我的去广告脚本\n// @version 1.0.0\n// @match *://*/*\n// @grant none\n// ==/UserScript==\n(function() { console.log('Hello'); })();\n```",
       "changelog": [
+        {
+          "version": "1.0.1",
+          "date": "2026-10-02",
+          "note": "手动更新"
+        },
         {
           "version": "1.0.0",
           "date": "2026-10-02",
@@ -193,6 +198,13 @@
           "number": 9,
           "node_id": "D_kwDOU4WJpM4ApuCF",
           "url": "https://github.com/ACG-Q/userscript-manager/discussions/9",
+          "created_at": "2026-10-02"
+        },
+        {
+          "version": "1.0.1",
+          "number": 10,
+          "node_id": "D_kwDOU4WJpM4ApuCc",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/10",
           "created_at": "2026-10-02"
         }
       ],
