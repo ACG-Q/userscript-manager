@@ -1,31 +1,22 @@
-import os
 import sys
 import io
-import tempfile
 import unittest
-from pathlib import Path
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-from userscript_manager.config import CONFIG
-from userscript_manager.issue_parser import parse_comment, extract_first_code_block, extract_all_code_blocks
+from tests._helpers import ConfigIsolation
+from userscript_manager.issue_parser import (
+    parse_comment, extract_first_code_block, extract_all_code_blocks,
+)
 from userscript_manager.utils import (
     extract_meta_from_code, strip_header, increment_version, build_dist_for_synced,
     build_userscript_header,
 )
 
-TMP = Path(tempfile.mkdtemp(prefix="usm_unit_"))
-os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
-CONFIG["registry_file"] = TMP / "registry.json"
-CONFIG["self_scripts_dir"] = TMP / "scripts" / "self"
-CONFIG["synced_scripts_dir"] = TMP / "scripts" / "synced"
-CONFIG["dist_dir"] = TMP / "dist"
-CONFIG["github_pages"]["base_url"] = ""
-CONFIG["github_repo"] = "testuser/testrepo"
-
 
 class TestIssueParser(unittest.TestCase):
+    """评论解析：命令/参数/代码块提取与归一化。"""
     def test_simple_command(self):
         p = parse_comment("/list")
         self.assertEqual(p.command, "list")
@@ -62,9 +53,16 @@ class TestIssueParser(unittest.TestCase):
         self.assertEqual(len(blocks), 2)
 
 
-class TestUtils(unittest.TestCase):
+class TestUtils(ConfigIsolation):
+    """工具函数：元数据提取、版本自增、头部/URL 处理。"""
+    REDIRECT_PATHS = False
+
     def test_extract_meta(self):
-        code = "// ==UserScript==\n// @name My Script\n// @version 2.0.0\n// @match *://a.com/*\n// @match *://b.com/*\n// @grant GM_xmlhttpRequest\n// ==/UserScript==\nbody()"
+        code = (
+            "// ==UserScript==\n// @name My Script\n// @version 2.0.0\n"
+            "// @match *://a.com/*\n// @match *://b.com/*\n"
+            "// @grant GM_xmlhttpRequest\n// ==/UserScript==\nbody()"
+        )
         meta = extract_meta_from_code(code)
         self.assertEqual(meta["name"], "My Script")
         self.assertEqual(meta["version"], "2.0.0")
@@ -80,8 +78,30 @@ class TestUtils(unittest.TestCase):
         self.assertEqual(increment_version("1.0"), "1.0.1")
         self.assertEqual(increment_version("not-a-version"), "1.0.1")
 
+    def test_increment_version_two_segments_keeps_major(self):
+        self.assertEqual(increment_version("2.5"), "2.5.1")
+
+    def test_increment_version_preserves_fourth_segment(self):
+        self.assertEqual(increment_version("1.2.3.4"), "1.2.3.5")
+
+    def test_increment_version_keeps_prerelease_suffix(self):
+        self.assertEqual(increment_version("1.2.3-beta"), "1.2.4-beta")
+
+    def test_extract_meta_empty_value_does_not_swallow_next_line(self):
+        meta = extract_meta_from_code("// @name\n// @version 1.2.3\n")
+        self.assertNotIn("name", meta)
+        self.assertEqual(meta.get("version"), "1.2.3")
+
+    def test_extract_meta_last_line_without_newline(self):
+        meta = extract_meta_from_code("// ==UserScript==\n// @version 1.2.3")
+        self.assertEqual(meta.get("version"), "1.2.3")
+
     def test_build_dist_for_synced_rewrites_urls(self):
-        original = "// ==UserScript==\n// @name X\n// @downloadURL https://old.example/x.js\n// @updateURL https://old.example/x.js\n// @match *://*/*\n// ==/UserScript==\nfn();\n"
+        original = (
+            "// ==UserScript==\n// @name X\n// @downloadURL https://old.example/x.js\n"
+            "// @updateURL https://old.example/x.js\n// @match *://*/*\n"
+            "// ==/UserScript==\nfn();\n"
+        )
         script_meta = {"id": "abc123"}
         out = build_dist_for_synced(script_meta, original)
         self.assertIn("https://testuser.github.io/testrepo/dist/abc123.user.js", out)

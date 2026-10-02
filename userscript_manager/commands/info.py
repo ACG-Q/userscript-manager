@@ -4,6 +4,7 @@ from ..commands import register
 
 @register("info")
 def execute(registry, args, code, markdown, has_code_block):
+    """/info <id>：输出脚本完整元数据与状态。"""
     if not args:
         return "❌ 请提供脚本 ID，例如 /info <script_id>"
     

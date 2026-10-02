@@ -4,6 +4,7 @@ from typing import Optional
 
 @dataclass
 class ParsedComment:
+    """一条评论的解析结果：命令、参数、Markdown 正文与首个代码块。"""
     command: Optional[str]
     args: str
     markdown: str          # Full markdown body (for documentation)
@@ -50,19 +51,22 @@ def parse_comment(comment_body: str) -> ParsedComment:
         has_code_block=has_code_block
     )
 
+_FENCE_RE = re.compile(r"```(?:[a-zA-Z0-9_+-]+)?\s*\n(.*?)\n```", re.DOTALL)
+
 def extract_first_code_block(markdown: str) -> tuple[str, bool]:
     """Extract code from first fenced code block (```lang ... ```)."""
-    # Match ```language\ncode\n``` or ```\ncode\n```
-    pattern = r"```(?:[a-zA-Z0-9_+-]+)?\s*\n(.*?)\n```"
-    match = re.search(pattern, markdown, re.DOTALL)
+    match = _FENCE_RE.search(markdown)
     if match:
         return match.group(1).strip(), True
     return "", False
 
 def extract_all_code_blocks(markdown: str) -> list[str]:
     """Extract all fenced code blocks."""
-    pattern = r"```(?:[a-zA-Z0-9_+-]+)?\s*\n(.*?)\n```"
-    return [m.group(1).strip() for m in re.finditer(pattern, markdown, re.DOTALL)]
+    return [m.group(1).strip() for m in _FENCE_RE.finditer(markdown)]
+
+def remove_code_blocks(markdown: str) -> str:
+    """Return markdown with all fenced code blocks stripped (prose only)."""
+    return _FENCE_RE.sub("", markdown).strip()
 
 # Backward compatibility
 def clean_code_block(text: str) -> str:

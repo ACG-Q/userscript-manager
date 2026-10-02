@@ -23,7 +23,17 @@ REPO_QUERY = """
 query($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
     id
-    labels(first: 50) { nodes { id name } }
+  }
+}
+"""
+
+LABELS_QUERY = """
+query($owner: String!, $name: String!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    labels(first: 100, after: $cursor) {
+      nodes { id name }
+      pageInfo { hasNextPage endCursor }
+    }
   }
 }
 """
@@ -73,10 +83,12 @@ mutation($issueId: ID!, $title: String!, $body: String!) {
 
 
 class GraphQLClient:
+    """最小 GitHub GraphQL 客户端：POST + Bearer，次级限速自动等待。"""
     def __init__(self, token: str):
         self.token = token
 
     def execute(self, query: str, variables: dict | None = None) -> dict:
+        """执行查询并返回 data；GraphQL 错误抛 RuntimeError。"""
         resp = requests.post(
             GRAPHQL_URL,
             json={"query": query, "variables": variables or {}},
@@ -93,14 +105,29 @@ class GraphQLClient:
         return payload["data"]
 
 
-def ensure_label_id(client, repo: dict) -> str | None:
+def list_all_labels(client, owner: str, name: str) -> list[dict]:
+    """分页拉取仓库全部 label（首个页面仅 50/100 条时也可能漏掉 script 标签）。"""
+    out: list[dict] = []
+    cursor = None
+    while True:
+        data = client.execute(
+            LABELS_QUERY, {"owner": owner, "name": name, "cursor": cursor}
+        )
+        conn = data["repository"]["labels"]
+        out.extend(conn["nodes"])
+        if not conn["pageInfo"]["hasNextPage"]:
+            return out
+        cursor = conn["pageInfo"]["endCursor"]
+
+
+def ensure_label_id(client, repo_id: str, labels: list[dict]) -> str | None:
     """幂等取 script 标签 id；创建被拒时降级返回 None（不阻断投影）。"""
-    for node in repo["labels"]["nodes"]:
+    for node in labels:
         if node["name"] == LABEL_NAME:
             return node["id"]
     try:
         created = client.execute(CREATE_LABEL_MUTATION, {
-            "repositoryId": repo["id"],
+            "repositoryId": repo_id,
             "name": LABEL_NAME,
             "color": LABEL_COLOR,
             "description": LABEL_DESC,
@@ -112,6 +139,7 @@ def ensure_label_id(client, repo: dict) -> str | None:
 
 
 def list_all_issues(client, owner: str, name: str) -> list[dict]:
+    """分页拉取仓库全部 Issue（含已关闭），供投影器对账。"""
     out: list[dict] = []
     cursor = None
     while True:
@@ -129,7 +157,7 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
     受控例外：仅回写 script["issue"] 追踪字段后保存 registry。"""
     actions: list[str] = []
     repo = client.execute(REPO_QUERY, {"owner": owner, "name": name})["repository"]
-    label_id = ensure_label_id(client, repo)
+    label_id = ensure_label_id(client, repo["id"], list_all_labels(client, owner, name))
     issues = list_all_issues(client, owner, name)
 
     by_marker: dict[str, dict] = {}
@@ -204,6 +232,7 @@ def project(client, registry: dict, owner: str, name: str) -> list[str]:
 
 
 def main() -> int:
+    """CLI 入口：按 registry 投影全部脚本 Issue 并输出动作摘要。"""
     token = os.getenv("GITHUB_TOKEN")
     repo_full = os.getenv("GITHUB_REPOSITORY", "")
     if not token or "/" not in repo_full:

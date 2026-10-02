@@ -3,7 +3,6 @@ import io
 import json
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,12 +10,8 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
+from tests._helpers import ConfigIsolation
 from userscript_manager.config import CONFIG
-_tmp = Path(tempfile.mkdtemp(prefix="usm_pages_"))
-CONFIG["registry_file"] = _tmp / "registry.json"
-CONFIG["dist_dir"] = _tmp / "dist"
-CONFIG["github_pages"]["base_url"] = ""
-CONFIG["github_repo"] = "testuser/testrepo"
 
 from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
 from build_pages import COMPONENT_CSS, TOKEN_CSS
@@ -49,7 +44,8 @@ def make_stats(answered=True, count=8, replies=None):
     )
 
 
-class TestPages(unittest.TestCase):
+class TestPages(ConfigIsolation):
+    """页面渲染基础：转义、链接、按钮状态、markdown 清洗。"""
     def test_index_escapes_script_name(self):
         html = build_index({"scripts": [make_script(name='<img src=x onerror="a()">')]})
         self.assertNotIn("<img src=x", html)
@@ -102,8 +98,27 @@ class TestPages(unittest.TestCase):
     def test_render_markdown_basic(self):
         self.assertIn("<h1>t</h1>", render_markdown("# t"))
 
+    def test_render_markdown_strips_scripts_and_event_handlers(self):
+        html = render_markdown(
+            "hi <script>alert(1)</script><img src=x onerror=alert(1)>"
+        )
+        self.assertNotIn("<script", html)
+        self.assertNotIn("onerror", html)
 
-class TestIndexPanels(unittest.TestCase):
+    def test_render_markdown_sanitizes_javascript_links(self):
+        html = render_markdown("[x](javascript:alert(1))")
+        self.assertNotIn("javascript:", html)
+
+    def test_render_markdown_keeps_normal_formatting(self):
+        html = render_markdown("# 标题\n\n- 一\n- 二\n\n**粗体** `code`")
+        self.assertIn("<h1>", html)
+        self.assertIn("<li>", html)
+        self.assertIn("<strong>", html)
+        self.assertIn("<code>", html)
+
+
+class TestIndexPanels(ConfigIsolation):
+    """首页面板：讨论徽标、筛选、空态与统计。"""
     def test_card_with_stats_shows_badges_and_quote(self):
         html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
         self.assertIn("已解决", html)
@@ -137,9 +152,12 @@ class TestIndexPanels(unittest.TestCase):
         self.assertIn("<b>—</b>", html_none)
 
     def test_filter_chips_and_data_type(self):
-        html = build_index({"scripts": [make_script(type="sync")]}, {})
-        self.assertIn('data-type="sync"', html)
+        html = build_index({"scripts": [make_script(type="synced")]}, {})
+        self.assertIn('data-type="synced"', html)
         self.assertIn('data-filter="all"', html)
+        # data-filter 必须与 data-type 同值，否则「同步」筛选永远匹配不到卡片
+        self.assertIn('data-filter="synced"', html)
+        self.assertNotIn('data-filter="sync"', html)
         self.assertIn(".chip", html)
 
     def test_empty_registry_message(self):
@@ -172,7 +190,7 @@ class TestIndexPanels(unittest.TestCase):
 
     def test_sync_and_disabled_have_tooltips(self):
         html = build_index(
-            {"scripts": [make_script(type="sync", source_type="direct",
+            {"scripts": [make_script(type="synced", source_type="direct",
                                      enabled=False)]},
             {},
         )
@@ -192,7 +210,8 @@ class TestIndexPanels(unittest.TestCase):
         self.assertIn("q=is%3Aissue+label%3Ascript", html)
 
 
-class TestDetailPanels(unittest.TestCase):
+class TestDetailPanels(ConfigIsolation):
+    """详情页面板：讨论区、空态、返回链与 pill。"""
     def test_no_issue_empty_state(self):
         html = build_detail(make_script(issue=None), make_stats())
         self.assertIn("还没有讨论", html)
@@ -279,7 +298,8 @@ class TestDetailPanels(unittest.TestCase):
         self.assertIn("--tip-fg", TOKEN_CSS)
 
 
-class TestBuildSiteStats(unittest.TestCase):
+class TestBuildSiteStats(ConfigIsolation):
+    """build_site：统计注入、降级渲染与陈旧页清理。"""
     def _read(self, *parts):
         return (Path(CONFIG["dist_dir"]).joinpath(*parts)).read_text(encoding="utf-8")
 
@@ -294,18 +314,20 @@ class TestBuildSiteStats(unittest.TestCase):
         self.assertIn("<b>—</b>", self._read("index.html"))
         self.assertIn("摘要暂不可用", self._read("scripts", "abc123.html"))
 
+    def test_build_site_removes_stale_detail_pages(self):
+        stale = Path(CONFIG["dist_dir"]) / "scripts" / "gone.html"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        stale.write_text("old", encoding="utf-8")
+        build_site({"scripts": [make_script()]}, {})
+        self.assertFalse(stale.exists())
+        self.assertTrue(
+            (Path(CONFIG["dist_dir"]) / "scripts" / "abc123.html").exists()
+        )
 
-class TestMainWiring(unittest.TestCase):
-    def setUp(self):
-        self._orig_registry = CONFIG["registry_file"]
-        self._orig_dist = CONFIG["dist_dir"]
-        tmp = Path(tempfile.mkdtemp(prefix="usm_main_"))
-        CONFIG["registry_file"] = tmp / "registry.json"
-        CONFIG["dist_dir"] = tmp / "dist"
 
-    def tearDown(self):
-        CONFIG["registry_file"] = self._orig_registry
-        CONFIG["dist_dir"] = self._orig_dist
+class TestMainWiring(ConfigIsolation):
+    """build_pages 入口：token 有无两条路径与告警。"""
+    TMP_PREFIX = "usm_main_"
 
     def _write_registry(self):
         Path(CONFIG["registry_file"]).write_text(
@@ -356,7 +378,8 @@ class TestMainWiring(unittest.TestCase):
         self.assertIn("8 条回复", self._read_index())
 
 
-class TestThemeTokens(unittest.TestCase):
+class TestThemeTokens(ConfigIsolation):
+    """主题令牌层：默认主题、保留主题块与组件层约束。"""
     def test_html_declares_default_theme(self):
         html = build_index({"scripts": []})
         self.assertIn('data-theme="github-light"', html)
@@ -383,7 +406,8 @@ class TestThemeTokens(unittest.TestCase):
         self.assertIn("管理入口", html)
 
 
-class TestThemeTokensFilled(unittest.TestCase):
+class TestThemeTokensFilled(ConfigIsolation):
+    """主题块补全：各主题填满关键令牌、无裸色值。"""
     def _block(self, name):
         from build_pages import TOKEN_CSS
         start = TOKEN_CSS.index(f'[data-theme="{name}"]')
@@ -419,7 +443,8 @@ class TestThemeTokensFilled(unittest.TestCase):
             self.assertIn(ref, COMPONENT_CSS)
 
 
-class TestThemeDrawerMarkup(unittest.TestCase):
+class TestThemeDrawerMarkup(ConfigIsolation):
+    """主题抽屉标记：rail/抽屉/预览行与样式存在性。"""
     def test_index_and_detail_contain_rail_and_drawer(self):
         for html in (build_index({"scripts": []}), build_detail(make_script())):
             self.assertIn('id="themeRail"', html)
@@ -443,7 +468,8 @@ class TestThemeDrawerMarkup(unittest.TestCase):
             self.assertIn(cls, PREVIEW_CSS)
 
 
-class TestThemeDrawerJS(unittest.TestCase):
+class TestThemeDrawerJS(ConfigIsolation):
+    """主题抽屉 JS：首屏前应用主题、持久化与回退。"""
     def test_head_applies_stored_theme_before_paint(self):
         for html in (build_index({"scripts": []}), build_detail(make_script())):
             head = html.split("</head>")[0]

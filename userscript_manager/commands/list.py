@@ -1,8 +1,8 @@
-from ..registry import load_registry
 from ..commands import register
 
 @register("list")
 def execute(registry, args, code, markdown, has_code_block):
+    """/list：列出全部脚本及启用/同步状态。"""
     if not registry["scripts"]:
         return "📭 当前没有脚本。"
     
@@ -17,5 +17,8 @@ def execute(registry, args, code, markdown, has_code_block):
                 sync_status = f" (上次同步: {last_sync[:10]})"
             else:
                 sync_status = " (未同步)"
-        lines.append(f"  {status} {script_type} {s['id']} | {s['name']} (v{s['version']}){sync_status}")
+        lines.append(
+            f"  {status} {script_type} {s['id']} | {s['name']} "
+            f"(v{s['version']}){sync_status}"
+        )
     return "\n".join(lines)

@@ -4,10 +4,10 @@ import uuid
 import jsbeautifier
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 from .config import CONFIG, get_install_url
 
 def format_js_code(code: str) -> str:
+    """统一美化 JS 源码（2 空格缩进、保留换行），自写脚本入库前调用。"""
     options = jsbeautifier.default_options()
     options.indent_size = 2
     options.indent_char = " "
@@ -17,6 +17,7 @@ def format_js_code(code: str) -> str:
     return jsbeautifier.beautify(code, options)
 
 def build_userscript_header(meta: dict, code_body: str) -> str:
+    """构建完整可安装脚本：有头部则保留原字段并同步 URL/版本，否则合成新头部。"""
     install_url = get_install_url(meta["id"])
     if "// ==UserScript==" in code_body:
         # 保留作者原头部的 @require/@run-at/@icon 等字段，只同步安装地址与版本
@@ -56,27 +57,22 @@ def _synthesize_header(meta: dict, code_body: str) -> str:
     return header + code_body
 
 def extract_meta_from_code(code: str) -> dict:
+    """从源码头部解析标量元数据与 @match/@grant 列表（共享解析器，勿复制）。"""
     meta = {}
-    patterns = {
-        "name": r"// @name\s+(.+?)\n",
-        "version": r"// @version\s+(.+?)\n",
-        "description": r"// @description\s+(.+?)\n",
-        "author": r"// @author\s+(.+?)\n",
-        "namespace": r"// @namespace\s+(.+?)\n",
-    }
-    for key, pattern in patterns.items():
-        m = re.search(pattern, code)
+    for key in ("name", "version", "description", "author", "namespace"):
+        m = re.search(rf"// @{key}[ \t]+([^\n]+)", code)
         if m:
             meta[key] = m.group(1).strip()
-    match_matches = re.findall(r"// @match\s+(.+?)\n", code)
+    match_matches = re.findall(r"// @match[ \t]+([^\n]+)", code)
     if match_matches:
         meta["match"] = [m.strip() for m in match_matches]
-    grant_matches = re.findall(r"// @grant\s+(.+?)\n", code)
+    grant_matches = re.findall(r"// @grant[ \t]+([^\n]+)", code)
     if grant_matches:
         meta["grant"] = [g.strip() for g in grant_matches]
     return meta
 
 def strip_header(code: str) -> str:
+    """剥离 ==UserScript== 头部块，返回纯脚本体。"""
     lines = code.splitlines()
     inside = False
     body = []
@@ -137,21 +133,26 @@ def sync_header_version(code: str, version: str) -> str:
     return "\n".join(lines)
 
 def generate_self_script_id() -> str:
+    """自写脚本 ID：UUID v4。"""
     return str(uuid.uuid4())
 
 def generate_synced_script_id(source_url: str) -> str:
+    """同步脚本 ID：来源 URL 的 MD5 前 12 位（同一 URL 天然去重）。"""
     return hashlib.md5(source_url.encode()).hexdigest()[:12]
 
 def ensure_dirs() -> None:
+    """按需创建源码与 dist 目录（幂等）。"""
     for d in [CONFIG["self_scripts_dir"], CONFIG["synced_scripts_dir"], CONFIG["dist_dir"]]:
         Path(d).mkdir(parents=True, exist_ok=True)
 
 def write_dist_file(script_id: str, content: str) -> Path:
+    """写入 dist/<id>.user.js 安装文件，返回路径。"""
     dist_file = CONFIG["dist_dir"] / f"{script_id}.user.js"
     dist_file.write_text(content, encoding="utf-8")
     return dist_file
 
 def read_source_file(script: dict) -> str:
+    """按脚本类型读取源码文件；不存在时返回空串。"""
     if script["type"] == "self":
         src_file = CONFIG["self_scripts_dir"] / script["id"] / "index.js"
     else:
@@ -159,6 +160,7 @@ def read_source_file(script: dict) -> str:
     return src_file.read_text(encoding="utf-8") if src_file.exists() else ""
 
 def write_source_file(script: dict, content: str) -> Path:
+    """按脚本类型写入源码文件（self 用 index.js，synced 用 script.user.js）。"""
     if script["type"] == "self":
         src_dir = CONFIG["self_scripts_dir"] / script["id"]
         src_file = src_dir / "index.js"
@@ -170,6 +172,7 @@ def write_source_file(script: dict, content: str) -> Path:
     return src_file
 
 def remove_source_dir(script: dict) -> None:
+    """删除脚本源码目录（不存在则忽略）。"""
     if script["type"] == "self":
         src_dir = CONFIG["self_scripts_dir"] / script["id"]
     else:
@@ -179,20 +182,25 @@ def remove_source_dir(script: dict) -> None:
         shutil.rmtree(src_dir)
 
 def remove_dist_file(script_id: str) -> None:
+    """删除对应 dist 安装文件（不存在则忽略）。"""
     dist_file = CONFIG["dist_dir"] / f"{script_id}.user.js"
     if dist_file.exists():
         dist_file.unlink()
 
 def increment_version(version: str) -> str:
-    parts = version.split(".")
-    try:
-        major, minor, patch = map(int, parts[:3])
-    except ValueError:
-        major, minor, patch = 1, 0, 0
-    patch += 1
-    return f"{major}.{minor}.{patch}"
+    """递增版本号：位数不足补 0，多段保留，非数字后缀原样跟随，绝不重置主版本。"""
+    m = re.match(r"^(\d+(?:\.\d+)*)(.*)$", (version or "").strip())
+    if not m:
+        return "1.0.1"
+    nums = [int(p) for p in m.group(1).split(".")]
+    suffix = m.group(2)
+    while len(nums) < 3:
+        nums.append(0)
+    nums[-1] += 1
+    return ".".join(str(n) for n in nums) + suffix
 
 def now_iso() -> str:
+    """UTC ISO-8601 时间戳（Z 后缀）。"""
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 def add_changelog(script: dict, note: str) -> None:
@@ -203,12 +211,8 @@ def add_changelog(script: dict, note: str) -> None:
         "note": note,
     })
 
-def save_documentation(script_id: str, markdown: str) -> None:
-    """Write markdown documentation for a script under its source dir.
-
-    Returns the path of the written README.md (relative to project root) so the
-    caller can store it in the in-memory registry without an extra load/save.
-    """
+def save_documentation(script_id: str, markdown: str) -> str:
+    """把 Markdown 文档写入脚本源目录下的 README.md，返回相对项目根的路径。"""
     doc_file = CONFIG["self_scripts_dir"] / script_id / "README.md"
     doc_file.parent.mkdir(parents=True, exist_ok=True)
     doc_file.write_text(markdown, encoding="utf-8")

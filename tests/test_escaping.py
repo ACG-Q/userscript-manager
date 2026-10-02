@@ -9,6 +9,7 @@ from userscript_manager.escaping import escape_html, escape_md_cell
 
 
 class TestEscaping(unittest.TestCase):
+    """Markdown/HTML 转义：阻止标签逃逸与表格破坏。"""
     def test_escape_html_blocks_tag_breakout(self):
         out = escape_html('<img src=x onerror="alert(1)">')
         self.assertNotIn("<img", out)

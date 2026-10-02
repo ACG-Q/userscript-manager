@@ -28,6 +28,7 @@ comments(last: 2) {
 
 @dataclass(frozen=True)
 class LatestReply:
+    """讨论区最近一条回复的摘要（作者/正文/时间/是否仓库成员）。"""
     author: str
     body: str
     created_at: str
@@ -36,6 +37,7 @@ class LatestReply:
 
 @dataclass(frozen=True)
 class IssueStats:
+    """单个脚本 Issue 的统计：回复数、关闭状态与最近 2 条回复。"""
     number: int
     url: str
     is_closed: bool
@@ -63,9 +65,14 @@ def clip(text: str, limit: int) -> str:
 
 
 def relative_time(iso: str, now: datetime | None = None) -> str:
-    """把 ISO 时间戳转为构建时刻的中文相对时间。"""
+    """把 ISO 时间戳转为构建时刻的中文相对时间；空串/非法值返回占位符。"""
+    if not iso:
+        return "—"
     now = now or datetime.now(timezone.utc)
-    created = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    try:
+        created = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except ValueError:
+        return "—"
     seconds = (now - created).total_seconds()
     if seconds < 60:
         return "刚刚"
@@ -98,7 +105,7 @@ def fetch_stats(
     try:
         data = client.execute(build_query(len(targets)), variables)
     except Exception as e:
-        log.warning("讨论统计拉取失败，站点降级渲染：%s", e)
+        log.warning("讨论统计拉取失败，站点降级渲染：%s", e, exc_info=True)
         return None
     repository = (data or {}).get("repository") or {}
     stats: dict[str, IssueStats] = {}

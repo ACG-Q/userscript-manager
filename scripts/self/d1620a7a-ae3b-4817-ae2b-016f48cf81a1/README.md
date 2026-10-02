@@ -21,8 +21,6 @@
   'use strict';
   const kill = () => document.querySelectorAll('#content_right, .ec_tuiguang_pannel').forEach(el => el.remove());
   kill();
-
-  kill();
   new MutationObserver(kill).observe(document.body, { childList: true, subtree: true });
 })();
 ```

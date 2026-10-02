@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 concurrency:
   group: issue-commands
@@ -89,6 +90,7 @@ jobs:
           fi
 
       - name: Commit changes
+        id: commit
         if: steps.gate.outputs.authorized == 'true'
         run: |
           git config user.name "github-actions[bot]"
@@ -99,6 +101,18 @@ jobs:
           else
             git commit -m "Apply command: ${{ github.event.comment.user.login }}"
             git push
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # GITHUB_TOKEN 的 push 不触发任何 workflow（GitHub 官方规则），
+      # 显式派发部署，保证回帖中的安装链接指向包含本次命令的最新构建。
+      - name: Trigger site deploy
+        if: steps.gate.outputs.authorized == 'true' && steps.commit.outputs.committed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh workflow run deploy-pages.yml -R ${{ github.repository }}; then
+            echo "⚠️ 站点部署派发失败（不阻断），安装链接可能滞后，可手动触发 Deploy 工作流" >> command_result.txt
           fi
 
       - name: Reply to comment

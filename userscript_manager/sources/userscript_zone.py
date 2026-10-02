@@ -1,18 +1,21 @@
-import re
 import requests
 from bs4 import BeautifulSoup
 from .base import BaseSourceAdapter, ScriptSource
 
 class UserscriptZoneAdapter(BaseSourceAdapter):
+    """Userscript.zone 来源适配器。"""
     @property
     def name(self) -> str:
+        """适配器展示名。"""
         return "Userscript.zone"
 
     @property
     def domains(self) -> list[str]:
+        """允许的精确域名列表（含子域）。"""
         return ["userscript.zone"]
 
     def fetch(self, url: str) -> ScriptSource:
+        """抓取并解析脚本内容，返回 ScriptSource。"""
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         soup = BeautifulSoup(resp.text, "html.parser")
@@ -37,24 +40,3 @@ class UserscriptZoneAdapter(BaseSourceAdapter):
             source_url=url,
             source_type="userscript_zone"
         )
-
-    def _extract_meta(self, code: str) -> dict:
-        meta = {}
-        patterns = {
-            "name": r"// @name\s+(.+?)\n",
-            "version": r"// @version\s+(.+?)\n",
-            "description": r"// @description\s+(.+?)\n",
-            "author": r"// @author\s+(.+?)\n",
-            "namespace": r"// @namespace\s+(.+?)\n",
-        }
-        for key, pattern in patterns.items():
-            m = re.search(pattern, code)
-            if m:
-                meta[key] = m.group(1).strip()
-        match_matches = re.findall(r"// @match\s+(.+?)\n", code)
-        if match_matches:
-            meta["match"] = [m.strip() for m in match_matches]
-        grant_matches = re.findall(r"// @grant\s+(.+?)\n", code)
-        if grant_matches:
-            meta["grant"] = [g.strip() for g in grant_matches]
-        return meta

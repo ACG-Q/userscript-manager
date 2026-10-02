@@ -36,7 +36,7 @@
 - **零运维**：不引入任何常驻进程，跑完即销毁（Actions runner 特性）
 - **状态持久**：Actions 每次运行都是全新环境，所有状态必须提交进 Git（这是本项目最重要的架构约束，见 6.1）
 - **手机可用**：核心操作路径在 GitHub 移动端 App 内闭环
-- **私有仓库可用**：不依赖公开服务
+- **私有仓库可用（管理功能）**：命令与状态存储不依赖公开服务；注意免费账户下 GitHub Pages 分发需 Public 仓库
 - **全量留痕**：每次操作对应一次 commit，天然具备审计日志和回滚能力
 - **可插拔**：新命令、新同步源都是加一个文件的事
 
@@ -128,9 +128,10 @@ flowchart TB
       "source_type": null,
       "last_synced_at": null,
       "sync_enabled": false,
-      "custom_match": null,
       "documentation": "# 文档……",
-      "doc_path": "self/<id>/README.md"
+      "changelog": [
+        {"version": "1.0.0", "date": "2026-08-20", "note": "初始版本"}
+      ]
     }
   ]
 }
@@ -144,7 +145,8 @@ flowchart TB
 | 元数据 | `name`、`version`、`match`、`grant` 等 | 从 `==UserScript==` 头部提取 |
 | 状态 | `enabled`、`sync_enabled` | 启用标记与自动同步开关 |
 | 同步 | `source_url`、`source_type`、`last_synced_at` | 仅同步脚本有值 |
-| 文档 | `documentation`、`doc_path` | Markdown 文档正文 + README 路径 |
+| 文档 | `documentation` | Markdown 文档正文（README 由 `save_documentation` 按约定路径写入，不留冗余路径字段） |
+| 变更 | `changelog` | 版本行数组，新行在前 |
 
 ### 4.2 两类脚本对比
 

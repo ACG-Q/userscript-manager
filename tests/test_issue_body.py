@@ -7,10 +7,7 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
-from userscript_manager.config import CONFIG
-CONFIG["github_pages"]["base_url"] = ""
-CONFIG["github_repo"] = "testuser/testrepo"
-
+from tests._helpers import ConfigIsolation
 from userscript_manager.issue_page import (
     build_issue_body, build_marker, build_title,
     script_id_from_body, tombstone_body, tombstone_title,
@@ -27,7 +24,10 @@ def make_script(**overrides):
     return script
 
 
-class TestIssueBody(unittest.TestCase):
+class TestIssueBody(ConfigIsolation):
+    """Issue 正文生成：标记往返、转义、文档与 changelog 渲染。"""
+    REDIRECT_PATHS = False
+
     def test_marker_is_first_line_and_roundtrips(self):
         body = build_issue_body(make_script())
         first = body.splitlines()[0]

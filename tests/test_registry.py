@@ -2,26 +2,20 @@ import json
 import os
 import sys
 import io
-import tempfile
 import unittest
-from pathlib import Path
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
+from tests._helpers import ConfigIsolation
 from userscript_manager.config import CONFIG
 from userscript_manager.registry import load_registry, save_registry, RegistryError
 
 
-class TestRegistry(unittest.TestCase):
-    def setUp(self):
-        self._saved = CONFIG["registry_file"]
-        self._tmp = Path(tempfile.mkdtemp(prefix="usm_reg_"))
-        CONFIG["registry_file"] = self._tmp / "registry.json"
-
-    def tearDown(self):
-        CONFIG["registry_file"] = self._saved
+class TestRegistry(ConfigIsolation):
+    """registry 读写：损坏报错、原子落盘、结构校验。"""
+    TMP_PREFIX = "usm_reg_"
 
     def test_missing_file_returns_empty_registry(self):
         self.assertEqual(load_registry(), {"scripts": []})
@@ -43,6 +37,27 @@ class TestRegistry(unittest.TestCase):
         data = load_registry()
         self.assertEqual(data["scripts"], [])
         self.assertEqual(data["foo"], 1)
+
+    def test_script_missing_id_raises(self):
+        CONFIG["registry_file"].write_text(
+            '{"scripts": [{"type": "self"}]}', encoding="utf-8"
+        )
+        with self.assertRaises(RegistryError) as ctx:
+            load_registry()
+        self.assertIn("id", str(ctx.exception))
+
+    def test_script_invalid_type_raises(self):
+        CONFIG["registry_file"].write_text(
+            '{"scripts": [{"id": "x", "type": "sync"}]}', encoding="utf-8"
+        )
+        with self.assertRaises(RegistryError) as ctx:
+            load_registry()
+        self.assertIn("type", str(ctx.exception))
+
+    def test_scripts_not_a_list_raises(self):
+        CONFIG["registry_file"].write_text('{"scripts": "nope"}', encoding="utf-8")
+        with self.assertRaises(RegistryError):
+            load_registry()
 
 
 if __name__ == "__main__":

@@ -2,11 +2,12 @@ import unittest
 from datetime import datetime, timezone
 
 from userscript_manager.issue_stats import (
-    IssueStats, LatestReply, build_query, clip, fetch_stats, relative_time,
+    build_query, clip, fetch_stats, relative_time,
 )
 
 
 class FakeClient:
+    """GraphQL 客户端测试替身：返回预置 data 或抛错。"""
     def __init__(self, data=None, error=None):
         self.data = data
         self.error = error
@@ -47,6 +48,7 @@ SCRIPTS = [
 
 
 class TestFetchStats(unittest.TestCase):
+    """fetch_stats：回复排序、别名批量查询、失败降级 None。"""
     def test_fetch_parses_replies_in_chronological_order(self):
         client = FakeClient(make_repo_data())
         out = fetch_stats(client, "t", "r", SCRIPTS)
@@ -91,6 +93,7 @@ class TestFetchStats(unittest.TestCase):
 
 
 class TestHelpers(unittest.TestCase):
+    """统计辅助函数：relative_time/clip/build_query。"""
     def test_relative_time_units(self):
         now = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
         self.assertEqual(relative_time("2026-10-01T11:59:30Z", now), "刚刚")
@@ -98,6 +101,11 @@ class TestHelpers(unittest.TestCase):
         self.assertEqual(relative_time("2026-10-01T09:00:00Z", now), "3 小时前")
         self.assertEqual(relative_time("2026-09-29T12:00:00Z", now), "2 天前")
         self.assertEqual(relative_time("2026-07-15T12:00:00Z", now), "2026-07-15")
+
+    def test_relative_time_empty_or_invalid_returns_placeholder(self):
+        # createdAt 缺失时 issue_stats 会给 ""，不能让整站构建崩溃
+        self.assertEqual(relative_time(""), "—")
+        self.assertEqual(relative_time("not-a-date"), "—")
 
     def test_clip(self):
         self.assertEqual(clip("abcdef", 3), "abc…")

@@ -1,26 +1,15 @@
 import io
 import os
 import sys
-import tempfile
 import unittest
-from pathlib import Path
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
-os.environ.setdefault("AUTHOR_NAME", "Test Author")
 
-from userscript_manager.config import CONFIG
-_tmp = Path(tempfile.mkdtemp(prefix="usm_cl_"))
-CONFIG["registry_file"] = _tmp / "registry.json"
-CONFIG["self_scripts_dir"] = _tmp / "scripts" / "self"
-CONFIG["synced_scripts_dir"] = _tmp / "scripts" / "synced"
-CONFIG["dist_dir"] = _tmp / "dist"
-CONFIG["github_pages"]["base_url"] = ""
-CONFIG["github_repo"] = "testuser/testrepo"
-
+from tests._helpers import ConfigIsolation
 from userscript_manager.registry import load_registry, save_registry
-from userscript_manager.utils import ensure_dirs, add_changelog
+from userscript_manager.utils import add_changelog
 from userscript_manager.issue_parser import parse_comment
 from userscript_manager.commands import get_command
 import userscript_manager.commands.add
@@ -37,15 +26,12 @@ body();
 """
 
 
-class TestChangelog(unittest.TestCase):
-    def setUp(self):
-        self._saved = CONFIG["registry_file"]
-        CONFIG["registry_file"] = _tmp / f"reg_{self.id()}.json"
-        ensure_dirs()
-        self.registry = load_registry()
+class TestChangelog(ConfigIsolation):
+    """changelog 行为：新行在前、add/up/sync 各路径写入正确。"""
+    TMP_PREFIX = "usm_cl_"
 
-    def tearDown(self):
-        CONFIG["registry_file"] = self._saved
+    def _config_setup(self):
+        self.registry = load_registry()
 
     def _run(self, body):
         p = parse_comment(body)
@@ -85,7 +71,7 @@ class TestChangelog(unittest.TestCase):
             "source_type": "direct",
             "sync_enabled": True, "created_at": "2026-01-01T00:00:00Z",
             "updated_at": "2026-01-01T00:00:00Z", "last_synced_at": "2026-01-01T00:00:00Z",
-            "custom_match": None, "documentation": "",
+            "documentation": "",
         }
         self.registry["scripts"].append(script)
         save_registry(self.registry)

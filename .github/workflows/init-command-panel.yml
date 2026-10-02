@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      # 本工作流只调用 GitHub API，无需检出仓库；
+      # 顶层 permissions 仅声明 issues，checkout 会因 contents: none 必然失败。
 
       - name: Check if Issue #1 exists
         id: check

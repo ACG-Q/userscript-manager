@@ -1,4 +1,4 @@
-from ..config import CONFIG, get_install_url
+from ..config import get_install_url
 from ..registry import save_registry, find_script
 from ..utils import (
     build_userscript_header, extract_meta_from_code, increment_version,
@@ -6,9 +6,11 @@ from ..utils import (
     add_changelog
 )
 from ..commands import register
+from ..issue_parser import remove_code_blocks
 
 @register("up")
 def execute(registry, args, code, markdown, has_code_block):
+    """/up <id>：用新代码块更新脚本，版本自增并记录 changelog。"""
     if not args:
         return "❌ 请提供要更新的脚本 ID，例如 /up <script_id>"
     if not has_code_block or not code.strip():
@@ -31,7 +33,6 @@ def execute(registry, args, code, markdown, has_code_block):
     script["match"] = meta.get("match", script["match"])
     script["grant"] = meta.get("grant", script["grant"])
     script["updated_at"] = now_iso()
-    script["documentation"] = markdown
     add_changelog(script, "手动更新")
     
     write_source_file(script, code)
@@ -39,9 +40,12 @@ def execute(registry, args, code, markdown, has_code_block):
     full_code = build_userscript_header(script, code)
     write_dist_file(args, full_code)
     
-    # Save documentation and record its path on the in-memory record
-    if markdown:
-        script["doc_path"] = save_documentation(args, markdown)
+    # Only touch documentation when the comment carries real prose; a
+    # code-only update must keep the existing docs (C1).
+    doc = markdown if remove_code_blocks(markdown).strip() else ""
+    if doc:
+        script["documentation"] = doc
+        save_documentation(args, doc)
     
     save_registry(registry)
     
