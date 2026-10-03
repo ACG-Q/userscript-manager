@@ -422,12 +422,16 @@ def detail_issue_panel(script: dict, stats) -> str:
     return f'<section class="d-disc">{head}{comments}</section>'
 
 
-def fetch_discussion_posts(client, scripts: list[dict]) -> dict[str, list[dict]] | None:
+def fetch_discussion_posts(client, scripts: list[dict],
+                           problems: list[str] | None = None
+                           ) -> dict[str, list[dict]] | None:
     """构建时拉取各版本帖评论，返回 {sid: [post, ...]}，每组按版本新→旧排列。
 
     post 结构：{version, number, url, is_answered, reply_count, comments}，
     comments 是渲染与嵌入共用的展示载荷（相对时间已算好、正文已折叠）。
-    无版本帖的脚本不占位也不发请求；整体失败返回 None（详情页回退 Issue 评论）。"""
+    无版本帖的脚本不占位也不发请求；整体失败返回 None（详情页回退 Issue 评论）。
+    problems 非 None 时逐条记录失败原因，供 build-warnings.txt 暴露到部署现场。"""
+    note = problems.append if problems is not None else (lambda _msg: None)
     targets = [(s["id"], s.get("discussions") or []) for s in scripts]
     targets = [(sid, ledger) for sid, ledger in targets if ledger]
     if not targets:
@@ -439,10 +443,14 @@ def fetch_discussion_posts(client, scripts: list[dict]) -> dict[str, list[dict]]
             for entry in reversed(ledger):  # 账本旧→新，倒序后最新版本在前
                 node_id = entry.get("node_id")
                 if not node_id:
+                    note(f"{sid} v{entry.get('version') or '-'} 缺少 node_id，跳过")
                     continue
                 data = fetch_discussion_comments(client, node_id)
                 if not data:
-                    continue  # 版本帖已删除：跳过该版本，不阻断其余
+                    # 版本帖已删除或令牌无权读取：跳过该版本，不阻断其余
+                    note(f"{sid} v{entry.get('version') or '-'} (#{entry.get('number')}) "
+                         "拉取为空：discussion 返回 null（节点不存在或无读取权限）")
+                    continue
                 payload = _comment_payload(data.get("comments") or [])
                 posts.append({
                     "version": entry.get("version") or "",
@@ -455,6 +463,7 @@ def fetch_discussion_posts(client, scripts: list[dict]) -> dict[str, list[dict]]
             if posts:
                 out[sid] = posts
     except Exception as e:
+        note(f"版本帖评论整体拉取失败，详情页回退 Issue 评论渲染：{e}")
         print(f"警告: 版本帖评论拉取失败，详情页回退 Issue 评论渲染：{e}",
               file=sys.stderr)
         return None
@@ -677,10 +686,13 @@ def build_site(registry: dict, stats_by_id: dict | None = None,
 
 
 def main() -> int:
-    """构建入口：拉取讨论统计与版本帖评论（无 token 降级）并生成全部页面。"""
+    """构建入口：拉取讨论统计与版本帖评论（无 token 降级）并生成全部页面。
+
+    拉取失败的原因会落到 dist/build-warnings.txt（部署后可在站点根目录看到）。"""
     registry = load_registry()
     stats_by_id = None
     disc_map = None
+    problems: list[str] = []
     token = os.environ.get("GITHUB_TOKEN", "")
     if token:
         from project_issues import GraphQLClient
@@ -690,13 +702,21 @@ def main() -> int:
             owner, _, name = CONFIG["github_repo"].partition("/")
         client = GraphQLClient(token)
         stats_by_id = fetch_stats(client, owner, name, registry["scripts"])
-        disc_map = fetch_discussion_posts(client, registry["scripts"])
+        if stats_by_id is None:
+            problems.append("讨论统计（Issue）拉取失败，首页与详情页降级渲染")
+        disc_map = fetch_discussion_posts(client, registry["scripts"], problems)
     else:
         print(
             "警告: 未设置 GITHUB_TOKEN，跳过讨论统计拉取，页面降级渲染",
             file=sys.stderr,
         )
     written = build_site(registry, stats_by_id, disc_map)
+    warnings = Path(CONFIG["dist_dir"]) / "build-warnings.txt"
+    if problems:
+        warnings.write_text("\n".join(problems) + "\n", encoding="utf-8")
+        print("\n".join(f"警告: {p}" for p in problems), file=sys.stderr)
+    elif warnings.exists():
+        warnings.unlink()
     print(f"已生成 {len(written)} 个页面 -> {CONFIG['dist_dir']}")
     return 0
 

@@ -364,6 +364,62 @@ class TestMainWiring(ConfigIsolation):
         self.assertIn("8 条回复", self._read_index())
 
 
+class TestBuildWarningsFile(ConfigIsolation):
+    """拉取失败的原因落到 dist/build-warnings.txt，部署后可在站点根目录查看。"""
+
+    TMP_PREFIX = "usm_warn_"
+
+    def _write_registry(self):
+        Path(CONFIG["registry_file"]).write_text(
+            json.dumps({"scripts": [make_script(discussions=make_ledger())]}),
+            encoding="utf-8",
+        )
+
+    def _run_main(self, fake_disc):
+        import build_pages as bp
+        self._write_registry()
+        orig_token = os.environ.get("GITHUB_TOKEN")
+        os.environ["GITHUB_TOKEN"] = "fake-token"
+        orig = bp.fetch_stats, bp.fetch_discussion_posts
+        bp.fetch_stats = lambda *a, **k: {"abc123": make_stats()}
+        bp.fetch_discussion_posts = fake_disc
+        try:
+            with contextlib.redirect_stderr(io.StringIO()):
+                rc = bp.main()
+        finally:
+            bp.fetch_stats, bp.fetch_discussion_posts = orig
+            if orig_token is None:
+                os.environ.pop("GITHUB_TOKEN", None)
+            else:
+                os.environ["GITHUB_TOKEN"] = orig_token
+        return rc
+
+    def _warnings_file(self):
+        return Path(CONFIG["dist_dir"]) / "build-warnings.txt"
+
+    def test_main_writes_warnings_when_fetch_fails(self):
+        def fake_disc(client, scripts, problems=None):
+            if problems is not None:
+                problems.append(
+                    "版本帖评论整体拉取失败，详情页回退 Issue 评论渲染：403")
+            return None
+
+        self.assertEqual(self._run_main(fake_disc), 0)
+        warn = self._warnings_file()
+        self.assertTrue(warn.exists())
+        self.assertIn("403", warn.read_text(encoding="utf-8"))
+
+    def test_main_removes_stale_warnings_when_fetch_ok(self):
+        self._warnings_file().parent.mkdir(parents=True, exist_ok=True)
+        self._warnings_file().write_text("旧告警\n", encoding="utf-8")
+
+        def fake_disc(client, scripts, problems=None):
+            return {"abc123": make_posts()}
+
+        self.assertEqual(self._run_main(fake_disc), 0)
+        self.assertFalse(self._warnings_file().exists())
+
+
 class TestThemeTokens(ConfigIsolation):
     def test_html_declares_default_theme(self):
         html = build_index({"scripts": []})
@@ -592,6 +648,33 @@ class TestFetchDiscussionPosts(ConfigIsolation):
                 Client(), [make_script(discussions=make_ledger())])
         self.assertIsNone(out)
         self.assertIn("回退", err.getvalue())
+
+    def test_problems_collect_failure_reasons(self):
+        class Boom:
+            def execute(self, *args, **kwargs):
+                raise RuntimeError("403 forbidden")
+
+        problems = []
+        with contextlib.redirect_stderr(io.StringIO()):
+            out = fetch_discussion_posts(
+                Boom(), [make_script(discussions=make_ledger())], problems)
+        self.assertIsNone(out)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("整体拉取失败", problems[0])
+        self.assertIn("403 forbidden", problems[0])
+
+    def test_problems_collect_empty_discussion_nodes(self):
+        class Client:
+            def execute(self, query, variables=None):
+                return {"discussion": None}
+
+        problems = []
+        out = fetch_discussion_posts(
+            Client(), [make_script(discussions=make_ledger())], problems)
+        self.assertEqual(out, {})          # 一个都没拉到 → 详情页回退
+        self.assertEqual(len(problems), 2)  # 每个版本帖各记一条
+        self.assertIn("拉取为空", problems[0])
+        self.assertIn("#9", problems[0])
 
 
 class TestDetailVersionSwitch(ConfigIsolation):
