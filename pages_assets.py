@@ -211,9 +211,29 @@ main { padding: 8px 28px 36px; }
 .cmt:first-of-type { border-top: none; }
 .cmt b { font-size: 13.5px; }
 .cmt time { font-size: 12px; align-self: center; color: var(--text-muted); }
-.cmt p { grid-column: 1 / -1; margin: 2px 0 0; line-height: 1.6; }
+.cmt p { grid-column: 1 / -1; margin: 2px 0 0; line-height: 1.6; overflow-wrap: anywhere; }
 .cmt.owner b::after { content: "· 仓库所有者"; color: var(--success); font-weight: 600; margin-left: 6px; font-size: 12px; }
+.cmt-who { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.answer-tag { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: var(--radius-pill); background: var(--success-bg); color: var(--success); white-space: nowrap; }
+.cmt-replies { grid-column: 1 / -1; margin: 6px 0 0 14px; padding-left: 12px; border-left: 2px solid var(--border); }
+.cmt-replies .cmt:first-child { border-top: none; padding-top: 8px; }
 .d-disc .btn { margin-top: 12px; }
+
+/* --- 版本帖切换（详情页评论区） --- */
+.disc-badges { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.disc-ver { position: relative; font-size: 13.5px; }
+.disc-ver-btn { display: inline-flex; align-items: center; gap: 5px; border: none; background: transparent; color: var(--brand); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; padding: 6px 6px; border-radius: 8px; min-height: 34px; }
+.disc-ver-btn:hover { color: var(--brand-hover); }
+.disc-ver-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.disc-ver-btn .chev { transition: transform .15s ease; flex: none; }
+.disc-ver-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+.disc-ver-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 224px; padding: 6px; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 12px 32px rgba(0, 0, 0, .16), 0 2px 8px rgba(0, 0, 0, .06); }
+.disc-ver-menu[hidden] { display: none; }
+.disc-ver-item { display: flex; width: 100%; align-items: center; gap: 8px; border: none; background: transparent; font: inherit; font-size: 13.5px; color: var(--text); padding: 9px 10px; border-radius: 8px; cursor: pointer; text-align: left; min-height: 40px; }
+.disc-ver-item:hover { background: var(--neutral-bg); }
+.disc-ver-item:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.disc-ver-item[aria-selected="true"] { color: var(--brand); font-weight: 600; }
+.disc-ver-item .num { margin-left: auto; font-size: 12px; color: var(--text-muted); font-weight: 400; }
 
 footer.foot { padding: 18px 28px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; color: var(--text-muted); border-top: 1px solid var(--border); }
 footer.foot a { font-weight: 600; }
@@ -301,6 +321,11 @@ footer.foot a { font-weight: 600; }
   .d-disc .disc-head { font-size: 13px; }
   .cmt { font-size: 13.5px; }
   .d-disc .btn { width: 100%; }
+
+  /* 版本切换：触控目标 44px，菜单不超出面板 */
+  .disc-ver-btn { min-height: 44px; }
+  .disc-ver-menu { min-width: 196px; }
+  .disc-ver-item { min-height: 44px; }
 
   footer.foot { padding: 14px 16px; font-size: 12px; gap: 10px; }
 
@@ -401,4 +426,126 @@ document.querySelectorAll('.chip').forEach(function (btn) {
     if (empty) empty.hidden = !(cards.length > 0 && visible === 0);
   });
 });
+</script>"""
+
+DISC_JS = """<script>
+(function () {
+  var dataEl = document.getElementById('discData');
+  if (!dataEl) return;
+  var data;
+  try { data = JSON.parse(dataEl.textContent); } catch (e) { return; }
+  if (!Array.isArray(data) || !data.length) return;
+  var btn = document.getElementById('discVerBtn');
+  var label = document.getElementById('discVerLabel');
+  var menu = document.getElementById('discVerMenu');
+  var link = document.getElementById('discLink');
+  var badges = document.getElementById('discBadges');
+  var box = document.getElementById('discComments');
+  var tpl = document.getElementById('discEmpty');
+  if (!btn || !menu || !badges || !box || !label) return;
+  var items = menu.querySelectorAll('.disc-ver-item');
+
+  var CHECK = '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  function verLabel(p, i) {
+    var v = p.version ? 'v' + p.version : '未知版本';
+    return i === 0 ? v + '（最新）' : v;
+  }
+
+  // 徽标 HTML 只由布尔值与数字拼成，正文一律走 textContent
+  function badgesHtml(p) {
+    var n = p.reply_count || 0;
+    if (p.is_answered) {
+      return '<span class="badge" data-tip="该版本帖已被标记为已解决">' + CHECK + '已解决</span>' +
+        '<span class="badge plain" data-tip="讨论回复总数">' + n + ' 条回复</span>';
+    }
+    if (!n) {
+      return '<span class="badge plain" data-tip="该版本帖还没有评论">0 条回复</span>';
+    }
+    return '<span class="badge plain" data-tip="讨论尚未标记为已解决">' + n + ' 条回复 · 待解决</span>';
+  }
+
+  function commentEl(c) {
+    var el = document.createElement('div');
+    el.className = 'cmt' + (c.is_owner ? ' owner' : '');
+    var who = document.createElement('span');
+    who.className = 'cmt-who';
+    var b = document.createElement('b');
+    b.textContent = c.author || '未知用户';
+    who.appendChild(b);
+    if (c.is_answer) {
+      var tag = document.createElement('span');
+      tag.className = 'answer-tag';
+      tag.textContent = '✓ 已解决';
+      who.appendChild(tag);
+    }
+    el.appendChild(who);
+    var t = document.createElement('time');
+    t.textContent = c.time || '—';
+    el.appendChild(t);
+    var p = document.createElement('p');
+    p.textContent = c.body || '';
+    el.appendChild(p);
+    var replies = c.replies || [];
+    if (replies.length) {
+      var wrap = document.createElement('div');
+      wrap.className = 'cmt-replies';
+      replies.forEach(function (r) { wrap.appendChild(commentEl(r)); });
+      el.appendChild(wrap);
+    }
+    return el;
+  }
+
+  function renderComments(p) {
+    box.textContent = '';
+    var list = p.comments || [];
+    if (!list.length) {
+      if (tpl && tpl.content) box.appendChild(tpl.content.cloneNode(true));
+      return;
+    }
+    list.forEach(function (c) { box.appendChild(commentEl(c)); });
+  }
+
+  function select(i) {
+    var p = data[i];
+    if (!p) return;
+    label.textContent = verLabel(p, i);
+    badges.innerHTML = badgesHtml(p);
+    renderComments(p);
+    if (link) {
+      if (typeof p.url === 'string' && /^https?:\/\//.test(p.url)) {
+        link.href = p.url;
+      } else {
+        link.removeAttribute('href');
+      }
+    }
+    items.forEach(function (it, idx) {
+      var on = idx === i;
+      it.setAttribute('aria-selected', String(on));
+      it.classList.toggle('active', on);
+    });
+  }
+
+  function setOpen(open) {
+    menu.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+  }
+
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    setOpen(menu.hidden);
+  });
+  items.forEach(function (it) {
+    it.addEventListener('click', function () {
+      select(Number(it.dataset.i));
+      setOpen(false);
+    });
+  });
+  document.addEventListener('click', function (e) {
+    if (!menu.hidden && !menu.contains(e.target)) setOpen(false);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') setOpen(false);
+  });
+})();
 </script>"""

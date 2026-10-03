@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """从 registry 生成 Pages 站点：index 列表页 + scripts/<id>.html 详情页。"""
+import json
 import os
 import sys
 from pathlib import Path
@@ -10,10 +11,11 @@ import markdown as md
 import nh3
 
 from userscript_manager.config import CONFIG, get_install_url
+from userscript_manager.discussions import fetch_discussion_comments
 from userscript_manager.issue_stats import clip, fetch_stats, relative_time
 from userscript_manager.escaping import escape_html
 from userscript_manager.registry import load_registry
-from pages_assets import COMPONENT_CSS, FILTER_JS, PREVIEW_CSS, TOKEN_CSS
+from pages_assets import COMPONENT_CSS, DISC_JS, FILTER_JS, PREVIEW_CSS, TOKEN_CSS
 
 BRAND = "油猴脚本管理器"
 BRAND_SHORT = "脚本管理器"
@@ -417,8 +419,183 @@ def detail_issue_panel(script: dict, stats) -> str:
     return f'<section class="d-disc">{head}{comments}</section>'
 
 
-def build_detail(script: dict, stats=None) -> str:
-    """渲染脚本详情页：元数据、文档、更新历史与讨论面板。"""
+def fetch_discussion_posts(client, scripts: list[dict]) -> dict[str, list[dict]] | None:
+    """构建时拉取各版本帖评论，返回 {sid: [post, ...]}，每组按版本新→旧排列。
+
+    post 结构：{version, number, url, is_answered, reply_count, comments}，
+    comments 是渲染与嵌入共用的展示载荷（相对时间已算好、正文已折叠）。
+    无版本帖的脚本不占位也不发请求；整体失败返回 None（详情页回退 Issue 评论）。"""
+    targets = [(s["id"], s.get("discussions") or []) for s in scripts]
+    targets = [(sid, ledger) for sid, ledger in targets if ledger]
+    if not targets:
+        return {}
+    out: dict[str, list[dict]] = {}
+    try:
+        for sid, ledger in targets:
+            posts = []
+            for entry in reversed(ledger):  # 账本旧→新，倒序后最新版本在前
+                node_id = entry.get("node_id")
+                if not node_id:
+                    continue
+                data = fetch_discussion_comments(client, node_id)
+                if not data:
+                    continue  # 版本帖已删除：跳过该版本，不阻断其余
+                payload = _comment_payload(data.get("comments") or [])
+                posts.append({
+                    "version": entry.get("version") or "",
+                    "number": entry.get("number") or 0,
+                    "url": data.get("url") or entry.get("url") or "",
+                    "is_answered": bool(data.get("is_answered")),
+                    "reply_count": _count_replies(payload),
+                    "comments": payload,
+                })
+            if posts:
+                out[sid] = posts
+    except Exception as e:
+        print(f"警告: 版本帖评论拉取失败，详情页回退 Issue 评论渲染：{e}",
+              file=sys.stderr)
+        return None
+    return out
+
+
+def _comment_payload(comments: list[dict]) -> list[dict]:
+    """把 discussion 评论规范化为展示结构（递归处理嵌套回复）。"""
+    out = []
+    for c in comments or []:
+        out.append({
+            "author": c.get("author") or "未知用户",
+            "is_owner": bool(c.get("is_owner")),
+            "is_answer": bool(c.get("is_answer")),
+            "time": relative_time(c.get("created_at") or ""),
+            "body": clip(c.get("body") or "", 400),
+            "replies": _comment_payload(c.get("replies") or []),
+        })
+    return out
+
+
+def _count_replies(comments: list[dict]) -> int:
+    """载荷内评论总数（含嵌套回复），用作徽标的回复计数。"""
+    return sum(1 + _count_replies(c.get("replies") or []) for c in comments)
+
+
+def _safe_url(url) -> str:
+    """仅放行 http(s) 外链，其余返回空串（拒绝 javascript: 等协议）。"""
+    url = url or ""
+    return url if url.startswith(("https://", "http://")) else ""
+
+
+def _comment_html(c: dict) -> str:
+    """单条评论（含嵌套回复）：作者 + 已解决标记 + 相对时间 + 正文。"""
+    author = escape_html(c.get("author") or "未知用户")
+    owner = " owner" if c.get("is_owner") else ""
+    answer = '<span class="answer-tag">✓ 已解决</span>' if c.get("is_answer") else ""
+    replies = c.get("replies") or []
+    replies_html = (
+        '<div class="cmt-replies">'
+        + "".join(_comment_html(r) for r in replies)
+        + "</div>"
+        if replies else ""
+    )
+    return (f'<div class="cmt{owner}">'
+            f'<span class="cmt-who"><b>{author}</b>{answer}</span>'
+            f'<time>{escape_html(c.get("time") or "—")}</time>'
+            f'<p>{escape_html(c.get("body") or "")}</p>{replies_html}</div>')
+
+
+def post_badges(post: dict) -> str:
+    """版本帖讨论徽标：已解决 / 回复数 · 待解决（与 Issue 徽标同一套视觉）。"""
+    count = int(post.get("reply_count") or 0)
+    if post.get("is_answered"):
+        return (
+            f'<span class="badge" data-tip="该版本帖已被标记为已解决">'
+            f"{ICON_CHECK}已解决</span>"
+            f'<span class="badge plain" data-tip="讨论回复总数">'
+            f"{count} 条回复</span>"
+        )
+    if not count:
+        return ('<span class="badge plain" data-tip="该版本帖还没有评论">'
+                "0 条回复</span>")
+    return (
+        f'<span class="badge plain" data-tip="讨论尚未标记为已解决">'
+        f"{count} 条回复 · 待解决</span>"
+    )
+
+
+def _ver_label(post: dict, index: int) -> str:
+    """版本下拉文案：首项（账本最新版本）追加「（最新）」。"""
+    label = f"v{post['version']}" if post.get("version") else "未知版本"
+    return f"{label}（最新）" if index == 0 else label
+
+
+def _disc_payload(posts: list[dict]) -> str:
+    """版本帖载荷 → 可安全内嵌的 JSON 文本（转义 & < >，防 </script> 逃逸）。
+
+    url 在此统一过一遍协议白名单：载荷里只可能携带 http(s) 链接。"""
+    safe = [{**p, "url": _safe_url(p.get("url"))} for p in posts]
+    raw = json.dumps(safe, ensure_ascii=False)
+    return raw.replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+
+
+def detail_version_panel(posts: list[dict], fallback_html: str) -> str:
+    """版本帖评论面板：版本下拉切换各帖评论与跳转链接。
+
+    posts 为空时原样返回 fallback_html（回退 Issue 评论面板）。"""
+    if not posts:
+        return fallback_html
+    first = posts[0]
+    items = []
+    for i, p in enumerate(posts):
+        selected = "true" if i == 0 else "false"
+        cls = "disc-ver-item active" if i == 0 else "disc-ver-item"
+        num = f"#{p['number']}" if p.get("number") else ""
+        num_html = f'<span class="num">{escape_html(num)}</span>' if num else ""
+        items.append(
+            f'<button type="button" class="{cls}" role="option" '
+            f'aria-selected="{selected}" data-i="{i}">'
+            f"{escape_html(_ver_label(p, i))}{num_html}</button>"
+        )
+    url = _safe_url(first.get("url"))
+    link = (
+        f'<a id="discLink" href="{escape_html(url)}" target="_blank" '
+        'rel="noopener noreferrer">在 GitHub 打开本帖 →</a>'
+    ) if url else ""
+    head = (
+        f'<div class="disc-head">{ICON_COMMENT}讨论'
+        f'<span class="disc-badges" id="discBadges">{post_badges(first)}</span>'
+        f'<span class="grow"></span>{link}'
+        '<div class="disc-ver">'
+        '<button type="button" class="disc-ver-btn" id="discVerBtn" '
+        'aria-haspopup="listbox" aria-expanded="false" aria-label="切换讨论版本">'
+        f'<span id="discVerLabel">{escape_html(_ver_label(first, 0))}</span>'
+        '<svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" '
+        'stroke="currentColor" stroke-width="2.5" stroke-linecap="round" '
+        'stroke-linejoin="round" aria-hidden="true">'
+        '<polyline points="6 9 12 15 18 9"/></svg></button>'
+        '<div class="disc-ver-menu" id="discVerMenu" role="listbox" '
+        'aria-label="选择版本帖" hidden>'
+        + "".join(items) +
+        "</div></div></div>"
+    )
+    comments = (
+        empty_state("该版本帖还没有评论", small=True)
+        if not first.get("comments")
+        else "".join(_comment_html(c) for c in first["comments"])
+    )
+    return (
+        f'<section class="d-disc">{head}'
+        f'<div id="discComments">{comments}</div>'
+        f'<template id="discEmpty">'
+        f'{empty_state("该版本帖还没有评论", small=True)}</template>'
+        f'<script type="application/json" id="discData">{_disc_payload(posts)}</script>'
+        "</section>"
+    )
+
+
+def build_detail(script: dict, stats=None,
+                 disc_posts: list[dict] | None = None) -> str:
+    """渲染脚本详情页：元数据、文档、更新历史与讨论面板。
+
+    disc_posts 为该脚本各版本帖的拉取结果（新→旧）；为空回退 Issue 评论面板。"""
     name = escape_html(script.get("name", script["id"]))
     author = escape_html(script.get("author", "") or "-")
     description = escape_html(script.get("description", ""))
@@ -458,18 +635,23 @@ def build_detail(script: dict, stats=None) -> str:
 <section class="d-doc">
 {render_markdown(script.get("documentation") or "_暂无文档_")}
 </section>
-{detail_issue_panel(script, stats)}
+{detail_version_panel(disc_posts or [], detail_issue_panel(script, stats))}
 <section class="d-doc">
 <h2>更新历史</h2>
 {changelog_html}
 </section>
 </section>
 </main>"""
-    return page(script.get("name", script["id"]), body, root_href="../index.html")
+    return page(script.get("name", script["id"]), body,
+                extra_js=DISC_JS if disc_posts else "",
+                root_href="../index.html")
 
 
-def build_site(registry: dict, stats_by_id: dict | None = None) -> list[Path]:
-    """生成列表页与各脚本详情页，并清理已删除脚本遗留的陈旧详情页。"""
+def build_site(registry: dict, stats_by_id: dict | None = None,
+               disc_map: dict | None = None) -> list[Path]:
+    """生成列表页与各脚本详情页，并清理已删除脚本遗留的陈旧详情页。
+
+    disc_map 为 fetch_discussion_posts 的结果：{sid: [post, ...]} 或 None（降级）。"""
     dist = Path(CONFIG["dist_dir"])
     (dist / "scripts").mkdir(parents=True, exist_ok=True)
     written = []
@@ -479,8 +661,10 @@ def build_site(registry: dict, stats_by_id: dict | None = None) -> list[Path]:
     keep = set()
     for s in registry["scripts"]:
         detail_stats = stats_by_id.get(s["id"]) if stats_by_id else None
+        detail_posts = disc_map.get(s["id"]) if disc_map else None
         detail_path = dist / "scripts" / f"{s['id']}.html"
-        detail_path.write_text(build_detail(s, detail_stats), encoding="utf-8")
+        detail_path.write_text(build_detail(s, detail_stats, detail_posts),
+                               encoding="utf-8")
         written.append(detail_path)
         keep.add(detail_path.name)
     for stale in (dist / "scripts").glob("*.html"):
@@ -490,9 +674,10 @@ def build_site(registry: dict, stats_by_id: dict | None = None) -> list[Path]:
 
 
 def main() -> int:
-    """构建入口：拉取讨论统计（无 token 降级）并生成全部页面。"""
+    """构建入口：拉取讨论统计与版本帖评论（无 token 降级）并生成全部页面。"""
     registry = load_registry()
     stats_by_id = None
+    disc_map = None
     token = os.environ.get("GITHUB_TOKEN", "")
     if token:
         from project_issues import GraphQLClient
@@ -500,13 +685,15 @@ def main() -> int:
         owner, sep, name = os.environ.get("GITHUB_REPOSITORY", "").partition("/")
         if not sep:
             owner, _, name = CONFIG["github_repo"].partition("/")
-        stats_by_id = fetch_stats(GraphQLClient(token), owner, name, registry["scripts"])
+        client = GraphQLClient(token)
+        stats_by_id = fetch_stats(client, owner, name, registry["scripts"])
+        disc_map = fetch_discussion_posts(client, registry["scripts"])
     else:
         print(
             "警告: 未设置 GITHUB_TOKEN，跳过讨论统计拉取，页面降级渲染",
             file=sys.stderr,
         )
-    written = build_site(registry, stats_by_id)
+    written = build_site(registry, stats_by_id, disc_map)
     print(f"已生成 {len(written)} 个页面 -> {CONFIG['dist_dir']}")
     return 0
 

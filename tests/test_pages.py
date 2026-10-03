@@ -14,8 +14,9 @@ from tests._helpers import ConfigIsolation
 from userscript_manager.config import CONFIG
 
 from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
-from build_pages import COMPONENT_CSS, TOKEN_CSS
+from build_pages import fetch_discussion_posts, COMPONENT_CSS, TOKEN_CSS
 from build_pages import FILTER_JS as FILTER_JS_SRC
+from build_pages import DISC_JS as DISC_JS_SRC
 from userscript_manager.issue_stats import IssueStats, LatestReply
 
 
@@ -468,6 +469,165 @@ class TestThemeDrawerJS(ConfigIsolation):
     def test_initial_theme_attribute_unchanged_fallback(self):
         html = build_index({"scripts": []})
         self.assertIn('<html lang="zh-CN" data-theme="github-light">', html)
+
+
+def make_ledger():
+    """版本帖账本：旧→新（与 projector 追加顺序一致）。"""
+    return [
+        {"version": "1.0.0", "number": 7, "node_id": "D_7",
+         "url": "https://github.com/t/r/discussions/7", "created_at": "2026-10-01"},
+        {"version": "1.0.1", "number": 9, "node_id": "D_9",
+         "url": "https://github.com/t/r/discussions/9", "created_at": "2026-10-02"},
+    ]
+
+
+def make_posts(body="搜索结果页还有广告"):
+    """fetch_discussion_posts 的展示结果：新→旧，含一条嵌套回复与一个空版本帖。"""
+    return [
+        {"version": "1.0.1", "number": 9,
+         "url": "https://github.com/t/r/discussions/9",
+         "is_answered": True, "reply_count": 2,
+         "comments": [{
+             "author": "u1", "is_owner": False, "is_answer": False,
+             "time": "2 天前", "body": body,
+             "replies": [{"author": "ACG-Q", "is_owner": True, "is_answer": True,
+                          "time": "1 天前", "body": "已修复", "replies": []}],
+         }]},
+        {"version": "1.0.0", "number": 7,
+         "url": "https://github.com/t/r/discussions/7",
+         "is_answered": False, "reply_count": 0, "comments": []},
+    ]
+
+
+class TestFetchDiscussionPosts(ConfigIsolation):
+    def test_no_ledger_returns_empty_without_client_calls(self):
+        class Boom:
+            def execute(self, *args, **kwargs):
+                raise AssertionError("无版本帖时不应发请求")
+
+        self.assertEqual(fetch_discussion_posts(Boom(), [make_script()]), {})
+
+    def test_posts_ordered_newest_first_with_counts(self):
+        class Client:
+            def execute(self, query, variables=None):
+                node = variables["id"]
+                return {"discussion": {
+                    "title": "版本帖",
+                    "url": f"https://github.com/t/r/discussions/{node[-1]}",
+                    "isAnswered": node == "D_9",
+                    "comments": {"totalCount": 1, "nodes": [{
+                        "author": {"login": "u1"}, "authorAssociation": "NONE",
+                        "body": "有问题", "createdAt": "2026-10-02T06:00:00Z",
+                        "isAnswer": False,
+                        "replies": {"nodes": [{
+                            "author": {"login": "ACG-Q"},
+                            "authorAssociation": "OWNER",
+                            "body": "已修复", "createdAt": "2026-10-02T07:00:00Z",
+                            "isAnswer": True, "replies": {"nodes": []}},
+                        ]},
+                    }]},
+                }}
+
+        out = fetch_discussion_posts(Client(), [make_script(discussions=make_ledger())])
+        posts = out["abc123"]
+        self.assertEqual([p["version"] for p in posts], ["1.0.1", "1.0.0"])
+        self.assertEqual([p["number"] for p in posts], [9, 7])
+        self.assertTrue(posts[0]["is_answered"])
+        self.assertEqual(posts[0]["reply_count"], 2)  # 顶层 1 条 + 嵌套 1 条
+        self.assertEqual(posts[0]["comments"][0]["replies"][0]["author"], "ACG-Q")
+        # createdAt 已转成构建时可读的相对时间（不再是原始 ISO 串）
+        self.assertTrue(posts[0]["comments"][0]["time"])
+        self.assertNotIn("2026-10-02T", posts[0]["comments"][0]["time"])
+
+    def test_fetch_failure_returns_none_for_fallback(self):
+        class Client:
+            def execute(self, *args, **kwargs):
+                raise RuntimeError("boom")
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            out = fetch_discussion_posts(
+                Client(), [make_script(discussions=make_ledger())])
+        self.assertIsNone(out)
+        self.assertIn("回退", err.getvalue())
+
+
+class TestDetailVersionSwitch(ConfigIsolation):
+    def test_switcher_renders_dropdown_payload_and_comments(self):
+        html = build_detail(make_script(discussions=make_ledger()),
+                            make_stats(), make_posts())
+        self.assertIn('id="discData"', html)
+        self.assertIn('id="discVerBtn"', html)
+        self.assertIn('<span id="discVerLabel">v1.0.1（最新）</span>', html)
+        self.assertIn('>v1.0.0<span class="num">#7</span></button>', html)
+        self.assertIn('data-i="1"', html)
+        self.assertIn('aria-selected="true"', html)
+        self.assertIn('aria-haspopup="listbox"', html)
+        self.assertIn("https://github.com/t/r/discussions/9", html)
+        self.assertIn("在 GitHub 打开本帖", html)
+        # 评论与徽标来自版本帖，不再是 Issue 回复
+        self.assertIn("2 条回复", html)
+        self.assertIn("已解决", html)
+        self.assertIn('<div class="cmt owner">', html)
+        self.assertIn("answer-tag", html)
+        self.assertIn("cmt-replies", html)
+        self.assertIn("搜索结果页还有广告", html)
+        self.assertNotIn("已修复，更新到 v1.0.1 即可。", html)
+        # 空版本帖：服务端空态 + 供切换复用的模板
+        self.assertIn("该版本帖还没有评论", html)
+        self.assertIn('<template id="discEmpty">', html)
+        # 详情页注入切换脚本
+        self.assertIn("discVerBtn", DISC_JS_SRC)
+        self.assertNotIn("disc-ver", FILTER_JS_SRC)
+
+    def test_payload_escapes_script_close_tag(self):
+        html = build_detail(make_script(discussions=make_ledger()), None,
+                            make_posts(body="</script><b>注入</b>"))
+        payload = html.split('id="discData">')[1].split("</script>")[0]
+        self.assertNotIn("<", payload)
+        self.assertNotIn(">", payload)
+        self.assertIn("\\u003c", payload)
+        # 服务端渲染的正文保持文本转义
+        self.assertIn("&lt;/script&gt;", html)
+
+    def test_missing_posts_falls_back_to_issue_panel(self):
+        html = build_detail(make_script(discussions=make_ledger()),
+                            make_stats(), None)
+        self.assertNotIn("discData", html)
+        self.assertNotIn("discVerBtn", html)
+        self.assertIn("已修复，更新到 v1.0.1 即可。", html)
+        self.assertIn('href="https://github.com/t/r/issues/4"', html)
+
+    def test_index_card_has_no_version_switcher(self):
+        html = build_index({"scripts": [make_script(discussions=make_ledger())]},
+                           {"abc123": make_stats()})
+        self.assertNotIn("discData", html)
+        self.assertNotIn("discVerBtn", html)
+
+    def test_build_site_writes_version_panel(self):
+        build_site({"scripts": [make_script(discussions=make_ledger())]},
+                   {"abc123": make_stats()}, {"abc123": make_posts()})
+        page_html = (Path(CONFIG["dist_dir"]) / "scripts" / "abc123.html") \
+            .read_text(encoding="utf-8")
+        self.assertIn('id="discVerBtn"', page_html)
+        self.assertIn("discData", page_html)
+
+    def test_switcher_css_and_js_defined(self):
+        for cls in (".disc-ver-btn", ".disc-ver-menu", ".disc-ver-item",
+                    ".disc-badges", ".cmt-who", ".cmt-replies", ".answer-tag"):
+            self.assertIn(cls, COMPONENT_CSS)
+        for token in ("discData", "discVerBtn", "setOpen", "aria-selected",
+                      "discEmpty"):
+            self.assertIn(token, DISC_JS_SRC)
+        # 移动端触控目标
+        self.assertIn(".disc-ver-btn { min-height: 44px; }", COMPONENT_CSS)
+
+    def test_unsafe_post_url_drops_link(self):
+        posts = make_posts()
+        posts[0]["url"] = "javascript:alert(1)"
+        html = build_detail(make_script(discussions=make_ledger()), None, posts)
+        self.assertNotIn('id="discLink"', html)
+        self.assertNotIn("javascript:", html)
 
 
 if __name__ == "__main__":
