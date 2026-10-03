@@ -1,0 +1,61 @@
+name: Cleanup Command Panel
+
+# 定期清理命令面板（Issue #1）：保留最近 10 组「命令 + 结果」，
+# 更早的先写入 archive/commands.json 再删除，最后派发站点部署刷新归档页。
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 每天 UTC 03:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: cleanup-panel
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # 归档成功即退出 0（删除失败只记录、下轮重试），保证归档一定被提交
+      - name: Archive and clean panel comments
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python panel_cleanup.py
+
+      - name: Commit archive
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "无归档变更"
+          else
+            git commit -m "chore(archive): 归档命令面板历史评论"
+            git push
+          fi
+
+      # GITHUB_TOKEN 的 push 不触发 workflow，显式派发站点部署（与 sync-scheduled 一致）
+      - name: Trigger site deploy
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh workflow run deploy-pages.yml -R ${{ github.repository }}; then
+            echo "⚠️ 站点部署派发失败（不阻断），可手动触发 Deploy 工作流"
+          fi

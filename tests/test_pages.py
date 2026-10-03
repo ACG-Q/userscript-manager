@@ -16,6 +16,7 @@ from userscript_manager.config import CONFIG
 from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
 from build_pages import fetch_discussion_posts, COMPONENT_CSS, TOKEN_CSS
 from build_pages import FILTER_JS as FILTER_JS_SRC
+from build_pages import LIST_JS as LIST_JS_SRC
 from build_pages import DISC_JS as DISC_JS_SRC
 from userscript_manager.issue_stats import IssueStats, LatestReply
 
@@ -91,9 +92,14 @@ class TestPages(ConfigIsolation):
 
     def test_build_site_writes_index_and_detail(self):
         written = build_site({"scripts": [make_script()]})
-        self.assertTrue((Path(CONFIG["dist_dir"]) / "index.html").exists())
-        self.assertTrue((Path(CONFIG["dist_dir"]) / "scripts" / "abc123.html").exists())
-        self.assertEqual(len(written), 2)
+        dist = Path(CONFIG["dist_dir"])
+        self.assertTrue((dist / "index.html").exists())
+        self.assertTrue((dist / "scripts" / "abc123.html").exists())
+        # 新增产物：懒加载数据 + 命令归档页（page-1 与跳转页）
+        self.assertTrue((dist / "scripts.json").exists())
+        self.assertTrue((dist / "commands" / "page-1.html").exists())
+        self.assertTrue((dist / "commands" / "index.html").exists())
+        self.assertEqual(len(written), 5)
 
     def test_render_markdown_basic(self):
         self.assertIn("<h1>t</h1>", render_markdown("# t"))
@@ -304,7 +310,7 @@ class TestBuildSiteStats(ConfigIsolation):
         written = build_site({"scripts": [make_script()]}, {"abc123": make_stats()})
         self.assertIn("8 条回复", self._read("index.html"))
         self.assertIn('<div class="cmt owner">', self._read("scripts", "abc123.html"))
-        self.assertEqual(len(written), 2)
+        self.assertEqual(len(written), 5)
 
     def test_none_stats_degrades_all_pages(self):
         build_site({"scripts": [make_script()]}, None)
@@ -753,6 +759,148 @@ class TestDetailVersionSwitch(ConfigIsolation):
         html = build_detail(make_script(discussions=make_ledger()), None, posts)
         self.assertNotIn('id="discLink"', html)
         self.assertNotIn("javascript:", html)
+
+
+class TestIndexLazyLoad(ConfigIsolation):
+    """首屏 SSR 前 10 张卡片，其余由 scripts.json 滚动追加。"""
+
+    def _registry(self, n):
+        return {"scripts": [make_script(id=f"s{i:02d}", name=f"脚本{i}")
+                            for i in range(n)]}
+
+    def test_overflow_list_renders_loader_and_defers_rest(self):
+        html = build_index(self._registry(12))
+        self.assertIn('id="scriptList"', html)
+        self.assertIn('data-batch="10"', html)
+        self.assertIn('data-total="12"', html)
+        self.assertIn('id="loadMore"', html)
+        self.assertIn('id="listSentinel"', html)
+        self.assertIn("scripts.json", LIST_JS_SRC)
+        self.assertIn("fetch('scripts.json')", html)   # LIST_JS 已注入
+        # 只有首屏 10 张卡服务端渲染，其余走 JSON
+        self.assertEqual(html.count('class="script-card"'), 10)
+        body = html[html.find("<body>"):html.find("</body>")]
+        self.assertEqual(body.count("<div"), body.count("</div>"),
+                         "scriptList/sentinel 必须配平")
+
+    def test_small_list_has_no_loader(self):
+        html = build_index(self._registry(3))
+        self.assertIn('data-total="3"', html)
+        self.assertNotIn('id="loadMore"', html)
+        self.assertNotIn("fetch('scripts.json')", html)
+        self.assertEqual(html.count('class="script-card"'), 3)
+
+    def test_scripts_json_contains_all_cards(self):
+        build_site(self._registry(12))
+        raw = (Path(CONFIG["dist_dir"]) / "scripts.json").read_text(encoding="utf-8")
+        items = json.loads(raw)
+        self.assertEqual(len(items), 12)
+        self.assertEqual(items[0]["type"], "self")
+        self.assertIn('data-type="self"', items[0]["html"])
+        self.assertIn('href="scripts/s00.html"', items[0]["html"])
+
+    def test_empty_registry_has_no_loader(self):
+        html = build_index({"scripts": []})
+        self.assertIn('data-total="0"', html)
+        self.assertNotIn('id="loadMore"', html)
+
+
+class TestCardDiscussionLink(ConfigIsolation):
+    """卡片「讨论」按钮优先指向最新版本帖。"""
+
+    def test_prefers_latest_version_post(self):
+        html = build_index(
+            {"scripts": [make_script(discussions=make_ledger())]},
+            {"abc123": make_stats()},
+        )
+        # 账本最新一条是 v1.0.1 → discussions/9
+        self.assertIn('href="https://github.com/t/r/discussions/9"', html)
+        self.assertNotIn('href="https://github.com/t/r/issues/4"', html)
+
+    def test_falls_back_to_script_issue(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        self.assertIn('href="https://github.com/t/r/issues/4"', html)
+
+    def test_falls_back_to_issue_list_without_issue(self):
+        html = build_index({"scripts": [make_script(issue=None, discussions=[])]}, {})
+        self.assertIn("q=is%3Aissue+label%3Ascript", html)
+
+
+class TestCommandArchivePages(ConfigIsolation):
+    """命令归档静态分页：每页 5 条，新→旧。"""
+
+    def _commands_dir(self):
+        return Path(CONFIG["dist_dir"]) / "commands"
+
+    def _write_archive(self, count):
+        entries = [
+            {"command_id": f"IC_{i}", "author": "ACG-Q",
+             "command": f"/cmd {i}", "created_at": "2026-10-02T03:00:00Z",
+             "results": [{"id": f"IR_{i}", "author": "github-actions[bot]",
+                          "body": f"**执行结果：** ok {i}",
+                          "created_at": "2026-10-02T03:01:00Z"}],
+             "archived_at": "2026-10-03T00:00:00Z"}
+            for i in range(1, count + 1)
+        ]
+        path = Path(CONFIG["archive_file"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"schema": 1, "commands": entries},
+                                   ensure_ascii=False), encoding="utf-8")
+
+    def test_pages_split_five_per_page_newest_first(self):
+        self._write_archive(12)
+        build_site({"scripts": []}, {})
+        cmds = self._commands_dir()
+        self.assertTrue((cmds / "page-1.html").exists())
+        self.assertTrue((cmds / "page-3.html").exists())
+        self.assertFalse((cmds / "page-4.html").exists())
+        p1 = (cmds / "page-1.html").read_text(encoding="utf-8")
+        self.assertIn("/cmd 12", p1)          # 新→旧，第 1 页是最新 5 条
+        self.assertIn("/cmd 8", p1)
+        self.assertNotIn("/cmd 7<", p1)       # 第 7 条在第 2 页
+        self.assertIn('href="page-2.html"', p1)
+        self.assertNotIn('href="page-0.html"', p1)
+        p3 = (cmds / "page-3.html").read_text(encoding="utf-8")
+        self.assertIn("/cmd 1", p3)
+        self.assertIn("第 3 / 3 页", p3)
+        self.assertNotIn('href="page-4.html"', p3)
+
+    def test_nav_and_footer_link_to_archive(self):
+        index = build_index({"scripts": []})
+        self.assertIn('href="commands/page-1.html"', index)
+        detail = build_detail(make_script())
+        self.assertIn('href="../commands/page-1.html"', detail)
+        self.assertIn('href="../commands/page-1.html"', detail)
+
+    def test_empty_archive_shows_empty_state_with_panel_link(self):
+        build_site({"scripts": []}, {})
+        p1 = (self._commands_dir() / "page-1.html").read_text(encoding="utf-8")
+        self.assertIn("还没有归档的命令记录", p1)
+        self.assertIn("issues/1", p1)
+        self.assertTrue((self._commands_dir() / "index.html").exists())
+
+    def test_shrinking_archive_removes_stale_pages(self):
+        self._write_archive(12)
+        build_site({"scripts": []}, {})
+        self._write_archive(3)
+        build_site({"scripts": []}, {})
+        cmds = self._commands_dir()
+        self.assertTrue((cmds / "page-1.html").exists())
+        self.assertFalse((cmds / "page-2.html").exists())
+
+    def test_command_body_is_escaped(self):
+        path = Path(CONFIG["archive_file"])
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"schema": 1, "commands": [{
+            "command_id": "IC_x", "author": "<b>u</b>",
+            "command": "</script><i>x</i>", "created_at": "",
+            "results": [], "archived_at": "2026-10-03T00:00:00Z",
+        }]}, ensure_ascii=False), encoding="utf-8")
+        build_site({"scripts": []}, {})
+        p1 = (self._commands_dir() / "page-1.html").read_text(encoding="utf-8")
+        self.assertNotIn("</script><i>", p1)
+        self.assertIn("&lt;/script&gt;", p1)
+        self.assertIn("&lt;b&gt;u&lt;/b&gt;", p1)
 
 
 if __name__ == "__main__":

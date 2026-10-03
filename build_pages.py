@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
@@ -15,12 +16,24 @@ from userscript_manager.discussions import fetch_discussion_comments
 from userscript_manager.issue_stats import clip, fetch_stats, relative_time
 from userscript_manager.escaping import escape_html
 from userscript_manager.registry import load_registry
-from pages_assets import COMPONENT_CSS, DISC_JS, FILTER_JS, PREVIEW_CSS, TOKEN_CSS
+from pages_assets import (
+    COMPONENT_CSS,
+    DISC_JS,
+    FILTER_JS,
+    LIST_JS,
+    PREVIEW_CSS,
+    TOKEN_CSS,
+)
 
 BRAND = "油猴脚本管理器"
 BRAND_SHORT = "脚本管理器"
 NAV_BTN_FULL = "管理入口 · Issue #1"
 NAV_BTN_SHORT = "管理"
+
+# 首页首屏服务端渲染的卡片数，其余由 scripts.json 滚动追加
+LIST_BATCH = 10
+# 命令归档页每页条数（一条 = 命令 + 其执行结果）
+COMMANDS_PER_PAGE = 5
 
 PAGE_STYLE = TOKEN_CSS + COMPONENT_CSS + PREVIEW_CSS
 
@@ -146,9 +159,14 @@ THEME_JS = """<script>
 
 
 def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index.html") -> str:
-    """包裹完整 HTML 壳：主题预载脚本、导航、主题抽屉与页脚。"""
+    """包裹完整 HTML 壳：主题预载脚本、导航、主题抽屉与页脚。
+
+    root_href 决定站内相对前缀（详情页为 ../index.html → ../），命令归档等
+    二级页据此生成正确的站内链接。"""
     repo = escape_html(CONFIG["github_repo"])
     issue = CONFIG["control_issue_number"]
+    rel = root_href.rsplit("/", 1)[0] + "/" if "/" in root_href else ""
+    archive_href = f"{rel}commands/page-1.html"
     return f"""<!DOCTYPE html>
 <html lang="zh-CN" data-theme="github-light">
 <head>
@@ -166,11 +184,13 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 <span class="spacer"></span>
 <a class="link" href="https://github.com/{repo}/blob/master/docs/index.md"{NEW_TAB}>文档</a>
 <a class="link" href="https://github.com/{repo}"{NEW_TAB}>GitHub 仓库</a>
+<a class="link" href="{archive_href}">命令归档</a>
 <a class="btn nav-btn" href="https://github.com/{repo}/issues/{issue}"{NEW_TAB}><span class="btn-label-full">管理入口 · Issue #{issue}</span><span class="btn-label-short">管理</span></a>
 </header>
 {body_html}
 <footer class="foot">
 <span>由 <a href="https://github.com/{repo}"{NEW_TAB}>{repo}</a> 自动生成</span>
+<a href="{archive_href}">命令归档</a>
 <a href="https://github.com/{repo}/issues/{issue}"{NEW_TAB}>管理入口 · Issue #{issue}</a>
 <a href="https://github.com/{repo}"{NEW_TAB}>GitHub 仓库</a>
 </footer>
@@ -218,6 +238,15 @@ def empty_state(text: str, small: bool = False, link_html: str = "",
 def issues_list_url() -> str:
     """带 script 标签过滤的 Issues 列表页 URL。"""
     return f"https://github.com/{CONFIG['github_repo']}/issues?q=is%3Aissue+label%3Ascript"
+
+
+def discussion_href(script: dict) -> str:
+    """卡片「讨论」入口：最新版本帖优先，其次脚本 Issue，最后 Issue 列表。"""
+    for entry in reversed(script.get("discussions") or []):  # 账本旧→新
+        url = _safe_url(entry.get("url"))
+        if url:
+            return url
+    return _safe_url((script.get("issue") or {}).get("url")) or issues_list_url()
 
 
 def issue_badges(stats) -> str:
@@ -326,9 +355,7 @@ def script_card(script: dict, stats) -> str:
         time_label = f"更新于 {when}" if when else ""
     desc = escape_html(script.get("description") or "")
     desc_html = f'<p class="sc-desc">{desc}</p>' if desc else ""
-    disc_href = escape_html(
-        (script.get("issue") or {}).get("url") or issues_list_url()
-    )
+    disc_href = escape_html(discussion_href(script))
     panel = script_issue_panel(script, stats)
     return f"""<article class="script-card" data-type="{script_type}">
 <div class="sc-main">
@@ -350,14 +377,25 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
     degraded = stats_by_id is None
     stats_map = stats_by_id or {}
     scripts = registry["scripts"]
-    cards = "\n".join(script_card(s, stats_map.get(s["id"])) for s in scripts)
-    if not cards:
-        cards = empty_state(
+    cards = [(s["type"], script_card(s, stats_map.get(s["id"]))) for s in scripts]
+    total = len(cards)
+    shown = cards[:LIST_BATCH]
+    if not shown:
+        list_html = empty_state(
             "暂无脚本，请在命令面板 Issue #1 中使用 /add 添加。")
         filter_empty = ""
     else:
+        list_html = "\n".join(html for _type, html in shown)
         filter_empty = empty_state("没有符合筛选条件的脚本",
                                    elem_id="filter-empty", hidden=True)
+    # 首屏之后的卡片由 scripts.json 懒加载（滚动到底或点「加载更多」）
+    if total > LIST_BATCH:
+        tail = ('<div id="listSentinel" aria-hidden="true"></div>'
+                '<button class="btn ghost" type="button" id="loadMore">'
+                "加载更多</button>"
+                f'<p class="list-end" id="listEnd" hidden>已全部加载（共 {total} 个）</p>')
+    else:
+        tail = ""
     if degraded:
         replies_html = answered_html = "—"
     else:
@@ -380,10 +418,22 @@ def build_index(registry: dict, stats_by_id: dict | None = None) -> str:
         <button class="chip" type="button" data-filter="synced">同步</button>
 </span>
 </h2>
-{cards}
+<div id="scriptList" data-batch="{LIST_BATCH}" data-total="{total}">
+{list_html}
+{tail}
+</div>
 {filter_empty}
 </main>"""
-    return page(BRAND, body, extra_js=FILTER_JS)
+    extra = FILTER_JS + (LIST_JS if total > LIST_BATCH else "")
+    return page(BRAND, body, extra_js=extra)
+
+
+def build_scripts_json(registry: dict, stats_by_id: dict | None = None) -> str:
+    """全量脚本卡片 → scripts.json：[{type, html}]，供首页滚动时追加渲染。"""
+    stats_map = stats_by_id or {}
+    items = [{"type": s["type"], "html": script_card(s, stats_map.get(s["id"]))}
+             for s in registry["scripts"]]
+    return json.dumps(items, ensure_ascii=False)
 
 
 def detail_issue_panel(script: dict, stats) -> str:
@@ -659,6 +709,125 @@ def build_detail(script: dict, stats=None,
                 root_href="../index.html")
 
 
+def load_command_archive() -> list[dict]:
+    """读命令面板归档账本；缺失或损坏返回空列表（不阻断建站）。"""
+    path = Path(CONFIG["archive_file"])
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+    commands = data.get("commands") if isinstance(data, dict) else None
+    return commands if isinstance(commands, list) else []
+
+
+def _cmd_time(iso: str) -> str:
+    """归档时间戳 → `YYYY-MM-DD HH:MM`；空值/非法值原样或占位。"""
+    if not iso:
+        return "—"
+    try:
+        moment = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except ValueError:
+        return iso
+    return moment.strftime("%Y-%m-%d %H:%M")
+
+
+def command_entry_html(entry: dict, serial: int) -> str:
+    """归档条目 → 命令 + 其执行结果的展示块。"""
+    author = escape_html(entry.get("author") or "未知用户")
+    when = escape_html(_cmd_time(entry.get("created_at") or ""))
+    command = escape_html(entry.get("command") or "")
+    results = entry.get("results") or []
+    if results:
+        res_html = "".join(
+            f'<div class="cmd-res"><div class="cmd-line">'
+            f"<b>{escape_html(r.get('author') or '未知用户')}</b>"
+            f"<time>{escape_html(_cmd_time(r.get('created_at') or ''))}</time>"
+            f"</div><pre>{escape_html(r.get('body') or '')}</pre></div>"
+            for r in results
+        )
+    else:
+        res_html = '<p class="cmd-none">没有执行结果</p>'
+    return (f'<article class="cmd-item">'
+            f'<div class="cmd-line"><b>{author}</b><time>{when}</time>'
+            f'<span class="cmd-no">#{serial}</span></div>'
+            f"<pre>{command}</pre>{res_html}</article>")
+
+
+def _pager(current: int, pages: int) -> str:
+    """静态分页控件：上一页 / 当前页码 / 下一页。"""
+    if pages <= 1:
+        return ""
+    parts = []
+    if current > 1:
+        parts.append(f'<a class="btn ghost" href="page-{current - 1}.html">上一页</a>')
+    parts.append(f'<span class="pager-now">第 {current} / {pages} 页</span>')
+    if current < pages:
+        parts.append(f'<a class="btn ghost" href="page-{current + 1}.html">下一页</a>')
+    return f'<nav class="pager" aria-label="分页">{" ".join(parts)}</nav>'
+
+
+def build_command_pages() -> list[Path]:
+    """生成 dist/commands/page-N.html（每页 COMMANDS_PER_PAGE 条）与跳转页。
+
+    归档账本为旧→新，展示按新→旧；同时清理页数变少后的陈旧分页文件。"""
+    dist = Path(CONFIG["dist_dir"])
+    out_dir = dist / "commands"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ordered = list(reversed(load_command_archive()))
+    chunks = [ordered[i:i + COMMANDS_PER_PAGE]
+              for i in range(0, len(ordered), COMMANDS_PER_PAGE)] or [[]]
+    written = []
+    issue_url = (f"https://github.com/{CONFIG['github_repo']}"
+                 f"/issues/{CONFIG['control_issue_number']}")
+    for index, chunk in enumerate(chunks, start=1):
+        if chunk:
+            entries = "".join(command_entry_html(entry, n)
+                              for n, entry in enumerate(chunk, start=1))
+        else:
+            entries = empty_state(
+                "还没有归档的命令记录。",
+                link_html=f'<a href="{escape_html(issue_url)}"{NEW_TAB}>'
+                          "去命令面板发一条命令 →</a>")
+        total_note = (f"<p class=\"cmd-sub\">共 {len(ordered)} 条历史命令，"
+                      "清理自命令面板 Issue #1，按时间新→旧排列，"
+                      f"每页 {COMMANDS_PER_PAGE} 条。</p>"
+                      if ordered else
+                      "<p class=\"cmd-sub\">命令面板中更早的「命令 + 执行结果」"
+                      "清理后会自动归档到这里。</p>")
+        body = f"""<main>
+<section class="detail-card">
+<h3 class="cmd-title">命令归档</h3>
+{total_note}
+{entries}
+{_pager(index, len(chunks))}
+</section>
+</main>"""
+        page_path = out_dir / f"page-{index}.html"
+        page_path.write_text(
+            page(f"命令归档 · 第 {index} 页", body, root_href="../index.html"),
+            encoding="utf-8")
+        written.append(page_path)
+
+    keep = {f"page-{i}.html" for i in range(1, len(chunks) + 1)}
+    for stale in out_dir.glob("page-*.html"):
+        if stale.name not in keep:
+            stale.unlink()
+
+    redirect = out_dir / "index.html"
+    redirect.write_text(
+        "<!DOCTYPE html>\n<html lang=\"zh-CN\">\n<head>\n"
+        "<meta charset=\"UTF-8\">\n"
+        "<meta http-equiv=\"refresh\" content=\"0; url=page-1.html\">\n"
+        "<title>命令归档</title>\n</head>\n<body>\n"
+        '<p><a href="page-1.html">进入命令归档第 1 页 →</a></p>\n'
+        "</body>\n</html>\n",
+        encoding="utf-8")
+    written.append(redirect)
+    return written
+
+
 def build_site(registry: dict, stats_by_id: dict | None = None,
                disc_map: dict | None = None) -> list[Path]:
     """生成列表页与各脚本详情页，并清理已删除脚本遗留的陈旧详情页。
@@ -670,6 +839,9 @@ def build_site(registry: dict, stats_by_id: dict | None = None,
     index_path = dist / "index.html"
     index_path.write_text(build_index(registry, stats_by_id), encoding="utf-8")
     written.append(index_path)
+    json_path = dist / "scripts.json"
+    json_path.write_text(build_scripts_json(registry, stats_by_id), encoding="utf-8")
+    written.append(json_path)
     keep = set()
     for s in registry["scripts"]:
         detail_stats = stats_by_id.get(s["id"]) if stats_by_id else None
@@ -682,6 +854,7 @@ def build_site(registry: dict, stats_by_id: dict | None = None,
     for stale in (dist / "scripts").glob("*.html"):
         if stale.name not in keep:
             stale.unlink()
+    written.extend(build_command_pages())
     return written
 
 

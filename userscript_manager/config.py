@@ -13,6 +13,8 @@ CONFIG = {
     "self_scripts_dir": PROJECT_ROOT / "scripts" / "self",
     "synced_scripts_dir": PROJECT_ROOT / "scripts" / "synced",
     "dist_dir": PROJECT_ROOT / "dist",
+    # 命令面板历史评论归档账本：panel_cleanup.py 写入，站点生成器读取
+    "archive_file": PROJECT_ROOT / "archive" / "commands.json",
     "github_repo": os.getenv("GITHUB_REPOSITORY", "owner/repo"),
     "branch": os.getenv("GITHUB_REF_NAME", "main"),
     "github_pages": {

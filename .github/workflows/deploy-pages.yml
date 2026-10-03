@@ -7,6 +7,10 @@ on:
     types: [opened, edited, closed, reopened]
   issue_comment:
     types: [created, edited, deleted]
+  # 版本帖（Discussion）新评论 → 重建站点，让新评论立刻上站。
+  # 只监听 created：编辑/删除不重复触发，一条评论只跑一次。
+  discussion_comment:
+    types: [created]
   workflow_dispatch:
 
 permissions:
@@ -27,7 +31,8 @@ jobs:
     timeout-minutes: 10
     # 命令面板 (#1) 的动态不进入站点数据；命令流程提交后已通过
     # gh workflow run 显式派发部署，这里跳过以避免无意义的重建。
-    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event.issue.number != 1 }}
+    # discussion_comment 没有 github.event.issue，需显式放行。
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'discussion_comment' || github.event.issue.number != 1 }}
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0

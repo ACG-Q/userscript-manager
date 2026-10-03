@@ -143,6 +143,12 @@ main { padding: 8px 28px 36px; }
 .chip:hover { border-color: var(--border-strong); }
 .chip.active { background: var(--brand); border-color: var(--brand); color: var(--on-accent); }
 
+/* 首屏之外的卡片：scripts.json 懒加载（滚动到底或点加载更多） */
+#listSentinel { height: 1px; }
+#loadMore { display: flex; margin: 16px auto 0; min-width: 172px; }
+#loadMore[disabled] { opacity: .7; cursor: progress; }
+.list-end { margin: 16px 0 0; text-align: center; font-size: 13px; color: var(--text-muted); }
+
 .script-card { display: grid; grid-template-columns: 1.3fr 1fr auto; gap: 18px; padding: 18px; border-radius: var(--radius-card); margin-bottom: 12px; align-items: start; background: var(--bg); border: 1px solid var(--border); }
 .script-card:hover { border-color: var(--brand-fade); }
 .sc-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -237,6 +243,22 @@ main { padding: 8px 28px 36px; }
 
 footer.foot { padding: 18px 28px; font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; color: var(--text-muted); border-top: 1px solid var(--border); }
 footer.foot a { font-weight: 600; }
+
+/* --- 命令归档页（commands/page-N.html） --- */
+.cmd-title { margin: 0 0 6px; font-size: 20px; }
+.cmd-sub { margin: 0 0 16px; font-size: 13.5px; color: var(--text-muted); }
+.cmd-item { padding: 14px 0; border-top: 1px solid var(--border); }
+.cmd-item:first-of-type { border-top: none; padding-top: 4px; }
+.cmd-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; margin-bottom: 6px; }
+.cmd-line b { font-size: 13.5px; }
+.cmd-line time { color: var(--text-muted); font-size: 12.5px; }
+.cmd-no { margin-left: auto; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.cmd-item > pre, .cmd-res pre { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--bg-subtle); border: 1px solid var(--border); font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cmd-res { margin-top: 8px; padding-left: 14px; border-left: 2px solid var(--border); }
+.cmd-res .cmd-line { margin-bottom: 4px; }
+.cmd-none { margin: 8px 0 0; font-size: 13px; color: var(--text-muted); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 20px; }
+.pager-now { font-size: 13.5px; color: var(--text-muted); }
 
 [data-tip] { position: relative; }
 [data-tip]::after {
@@ -428,6 +450,107 @@ document.querySelectorAll('.chip').forEach(function (btn) {
 });
 </script>"""
 
+LIST_JS = """<script>
+(function () {
+  var list = document.getElementById('scriptList');
+  if (!list) return;
+  var sentinel = document.getElementById('listSentinel');
+  var more = document.getElementById('loadMore');
+  var end = document.getElementById('listEnd');
+  var batch = parseInt(list.dataset.batch, 10) || 10;
+  var total = parseInt(list.dataset.total, 10) || 0;
+  var shown = list.querySelectorAll('.script-card').length;
+  var items = null;
+  var pending = false;
+
+  function activeFilter() {
+    var chip = document.querySelector('.chip.active');
+    return chip ? (chip.dataset.filter || 'all') : 'all';
+  }
+
+  function applyFilter(card, f) {
+    card.hidden = !(f === 'all' || card.dataset.type === f);
+  }
+
+  function refreshEmpty() {
+    var box = document.getElementById('filter-empty');
+    if (!box) return;
+    var loaded = list.querySelectorAll('.script-card').length;
+    var visible = list.querySelectorAll('.script-card:not([hidden])').length;
+    box.hidden = !(loaded > 0 && visible === 0);
+  }
+
+  function updateTail() {
+    var done = shown >= total;
+    if (more) { more.hidden = done; if (!pending) more.textContent = '加载更多'; }
+    if (sentinel) sentinel.hidden = done;
+    if (end) end.hidden = !done;
+  }
+
+  function appendBatch() {
+    if (items === null || shown >= total) { updateTail(); refreshEmpty(); return; }
+    var f = activeFilter();
+    var frag = document.createDocumentFragment();
+    var added = 0;
+    while (shown < total && added < batch) {
+      var item = items[shown];
+      var wrap = document.createElement('div');
+      wrap.innerHTML = item && item.html ? item.html : '';
+      var card = wrap.firstElementChild;
+      if (card) { applyFilter(card, f); frag.appendChild(card); }
+      shown += 1;
+      added += 1;
+    }
+    list.insertBefore(frag, sentinel || null);
+    updateTail();
+    refreshEmpty();
+    // 当前筛选一条都没命中且后面还有 → 继续补下一批
+    if (!list.querySelector('.script-card:not([hidden])') && shown < total) appendBatch();
+  }
+
+  function ensureData() {
+    if (items !== null) { appendBatch(); return; }
+    if (pending) return;
+    pending = true;
+    if (more) { more.disabled = true; more.textContent = '加载中…'; }
+    fetch('scripts.json')
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function (data) {
+        items = Array.isArray(data) ? data : [];
+        pending = false;
+        if (more) more.disabled = false;
+        appendBatch();
+      })
+      .catch(function (err) {
+        pending = false;
+        if (more) { more.disabled = false; more.textContent = '加载失败，点击重试'; }
+        console.warn('scripts.json 加载失败', err);
+      });
+  }
+
+  if (more) more.addEventListener('click', ensureData);
+
+  if (sentinel && 'IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) { if (e.isIntersecting) ensureData(); });
+    }, { rootMargin: '400px 0px' });
+    io.observe(sentinel);
+  }
+
+  // 筛选切换：重算已加载卡片；一条都没命中且还有余量时继续补载
+  document.addEventListener('click', function (e) {
+    var chip = e.target && e.target.closest ? e.target.closest('.chip') : null;
+    if (!chip) return;
+    setTimeout(function () {
+      var f = activeFilter();
+      list.querySelectorAll('.script-card').forEach(function (c) { applyFilter(c, f); });
+      refreshEmpty();
+      if (!list.querySelector('.script-card:not([hidden])') && shown < total) ensureData();
+    }, 0);
+  });
+})();
+</script>"""
+
 DISC_JS = """<script>
 (function () {
   var dataEl = document.getElementById('discData');
@@ -513,8 +636,10 @@ DISC_JS = """<script>
     badges.innerHTML = badgesHtml(p);
     renderComments(p);
     if (link) {
-      if (typeof p.url === 'string' && /^https?:\/\//.test(p.url)) {
-        link.href = p.url;
+      var u = typeof p.url === 'string' ? p.url : '';
+      var httpOk = u.slice(0, 8) === 'https://' || u.slice(0, 7) === 'http://';
+      if (httpOk) {
+        link.href = u;
       } else {
         link.removeAttribute('href');
       }

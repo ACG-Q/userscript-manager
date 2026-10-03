@@ -16,6 +16,7 @@ _PATH_KEYS = (
     "self_scripts_dir",
     "synced_scripts_dir",
     "dist_dir",
+    "archive_file",
 )
 
 FRESH_REGISTRY = '{"schema": 1, "scripts": []}'
@@ -44,6 +45,7 @@ class ConfigIsolation(unittest.TestCase):
             CONFIG["self_scripts_dir"] = self._tmp / "scripts" / "self"
             CONFIG["synced_scripts_dir"] = self._tmp / "scripts" / "synced"
             CONFIG["dist_dir"] = self._tmp / "dist"
+            CONFIG["archive_file"] = self._tmp / "archive" / "commands.json"
             ensure_dirs()
         CONFIG["github_repo"] = "testuser/testrepo"
         CONFIG["github_pages"]["base_url"] = ""

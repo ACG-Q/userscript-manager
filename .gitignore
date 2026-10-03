@@ -44,6 +44,8 @@ result.txt
 # Pages 站点 HTML（build_pages.py 部署时生成，不入库）
 dist/index.html
 dist/scripts/
+dist/scripts.json
+dist/commands/
 dist/build-warnings.txt
 
 # 本地设计文档与执行计划（不入库）
