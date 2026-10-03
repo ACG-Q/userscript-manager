@@ -61,8 +61,8 @@ class TestPages(ConfigIsolation):
         html = build_detail(make_script(), make_stats())
         self.assertIn(
             '<a class="btn primary" '
-            'href="https://testuser.github.io/testrepo/dist/abc123.user.js">'
-            "安装脚本</a>",
+            'href="https://testuser.github.io/testrepo/dist/abc123.user.js"'
+            ' target="_blank" rel="noopener noreferrer">安装脚本</a>',
             html,
         )
 
@@ -469,6 +469,48 @@ class TestThemeDrawerJS(ConfigIsolation):
     def test_initial_theme_attribute_unchanged_fallback(self):
         html = build_index({"scripts": []})
         self.assertIn('<html lang="zh-CN" data-theme="github-light">', html)
+
+
+class TestNewTabLinks(ConfigIsolation):
+    """外链（GitHub / 安装地址）一律新标签打开，站内页面导航保持当前标签。"""
+
+    def test_index_external_links_open_new_tab(self):
+        html = build_index({"scripts": [make_script()]}, {"abc123": make_stats()})
+        attrs = ' target="_blank" rel="noopener noreferrer"'
+        for marker in (
+            'href="https://github.com/testuser/testrepo/blob/master/docs/index.md"',
+            'href="https://github.com/testuser/testrepo"',
+            'href="https://github.com/testuser/testrepo/issues/1"',
+            'href="https://github.com/t/r/issues/4"',   # 卡片「讨论」
+        ):
+            self.assertIn(f"{marker}{attrs}>", html)
+        self.assertIn(
+            'href="https://testuser.github.io/testrepo/dist/abc123.user.js"'
+            f"{attrs}>", html,
+        )
+
+    def test_index_internal_links_stay_in_tab(self):
+        html = build_index({"scripts": [make_script()]})
+        self.assertIn('<a class="btn ghost" href="scripts/abc123.html">详情</a>', html)
+        self.assertNotIn('href="scripts/abc123.html" target', html)
+        self.assertNotIn('<a class="brand" href="index.html" target', html)
+
+    def test_detail_external_new_tab_and_internal_in_tab(self):
+        html = build_detail(make_script(), make_stats())
+        self.assertIn(
+            'href="https://github.com/t/r/issues/4"'
+            ' target="_blank" rel="noopener noreferrer">在 GitHub 打开 →</a>', html,
+        )
+        self.assertIn('<a class="back" href="../index.html">← 返回列表</a>', html)
+        self.assertNotIn('href="../index.html" target', html)
+        self.assertNotIn('<a class="brand" href="../index.html" target', html)
+
+    def test_version_panel_link_opens_new_tab(self):
+        html = build_detail(make_script(discussions=make_ledger()), None, make_posts())
+        self.assertIn(
+            'id="discLink" href="https://github.com/t/r/discussions/9"'
+            ' target="_blank" rel="noopener noreferrer"', html,
+        )
 
 
 def make_ledger():

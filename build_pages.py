@@ -24,6 +24,9 @@ NAV_BTN_SHORT = "管理"
 
 PAGE_STYLE = TOKEN_CSS + COMPONENT_CSS + PREVIEW_CSS
 
+# 外链（GitHub / 安装地址）统一新标签打开；站内页面导航保持当前标签
+NEW_TAB = ' target="_blank" rel="noopener noreferrer"'
+
 
 def render_markdown(text: str) -> str:
     """把文档 Markdown 渲染为安全 HTML（nh3 消毒、禁脚本与事件属性）。"""
@@ -161,15 +164,15 @@ def page(title: str, body_html: str, extra_js: str = "", root_href: str = "index
 <header class="nav">
 <a class="brand" href="{root_href}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="brand-full">{BRAND}</span><span class="brand-short">{BRAND_SHORT}</span></a>
 <span class="spacer"></span>
-<a class="link" href="https://github.com/{repo}/blob/master/docs/index.md">文档</a>
-<a class="link" href="https://github.com/{repo}">GitHub 仓库</a>
-<a class="btn nav-btn" href="https://github.com/{repo}/issues/{issue}"><span class="btn-label-full">管理入口 · Issue #{issue}</span><span class="btn-label-short">管理</span></a>
+<a class="link" href="https://github.com/{repo}/blob/master/docs/index.md"{NEW_TAB}>文档</a>
+<a class="link" href="https://github.com/{repo}"{NEW_TAB}>GitHub 仓库</a>
+<a class="btn nav-btn" href="https://github.com/{repo}/issues/{issue}"{NEW_TAB}><span class="btn-label-full">管理入口 · Issue #{issue}</span><span class="btn-label-short">管理</span></a>
 </header>
 {body_html}
 <footer class="foot">
-<span>由 <a href="https://github.com/{repo}">{repo}</a> 自动生成</span>
-<a href="https://github.com/{repo}/issues/{issue}">管理入口 · Issue #{issue}</a>
-<a href="https://github.com/{repo}">GitHub 仓库</a>
+<span>由 <a href="https://github.com/{repo}"{NEW_TAB}>{repo}</a> 自动生成</span>
+<a href="https://github.com/{repo}/issues/{issue}"{NEW_TAB}>管理入口 · Issue #{issue}</a>
+<a href="https://github.com/{repo}"{NEW_TAB}>GitHub 仓库</a>
 </footer>
 </div>
 {extra_js}
@@ -244,14 +247,14 @@ def script_issue_panel(script: dict, stats) -> str:
         return (f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "还没有讨论", small=True,
-                    link_html=f'<a href="{escape_html(issues_list_url())}">'
+                    link_html=f'<a href="{escape_html(issues_list_url())}"{NEW_TAB}>'
                               "发起讨论 →</a>")
                 + "</div>")
     if stats is None:
         return (f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "摘要暂不可用", small=True,
-                    link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
+                    link_html=f'<a href="{escape_html(url)}"{NEW_TAB}>在 GitHub 打开 →</a>')
                 + "</div>")
     head = f'<div class="sc-disc"><div class="disc-head">{ICON_COMMENT}讨论{issue_badges(stats)}'
     if stats.replies:
@@ -273,7 +276,7 @@ def install_button(script: dict, label: str = "安装") -> str:
         return (f'<span class="btn primary disabled" aria-disabled="true" '
                 f'data-tip="脚本已禁用，暂不可安装">{label}</span>')
     url = escape_html(get_install_url(script["id"]))
-    return f'<a class="btn primary" href="{url}">{label}</a>'
+    return f'<a class="btn primary" href="{url}"{NEW_TAB}>{label}</a>'
 
 
 def type_pill(script: dict) -> str:
@@ -337,7 +340,7 @@ def script_card(script: dict, stats) -> str:
 <div class="sc-actions">
 {install_button(script)}
 <a class="btn ghost" href="scripts/{sid}.html">详情</a>
-<a class="btn ghost" href="{disc_href}">讨论</a>
+<a class="btn ghost" href="{disc_href}"{NEW_TAB}>讨论</a>
 </div>
 </article>"""
 
@@ -391,7 +394,7 @@ def detail_issue_panel(script: dict, stats) -> str:
                 f'{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "还没有讨论", small=True,
-                    link_html=f'<a href="{escape_html(issues_list_url())}">'
+                    link_html=f'<a href="{escape_html(issues_list_url())}"{NEW_TAB}>'
                               "发起讨论 →</a>")
                 + "</section>")
     if stats is None:
@@ -399,12 +402,12 @@ def detail_issue_panel(script: dict, stats) -> str:
                 f'{ICON_COMMENT}讨论</div>'
                 + empty_state(
                     "摘要暂不可用", small=True,
-                    link_html=f'<a href="{escape_html(url)}">在 GitHub 打开 →</a>')
+                    link_html=f'<a href="{escape_html(url)}"{NEW_TAB}>在 GitHub 打开 →</a>')
                 + "</section>")
     head = (
         f'<div class="disc-head">{ICON_COMMENT}讨论{issue_badges(stats)}'
         f'<span class="grow"></span>'
-        f'<a href="{escape_html(url)}">在 GitHub 打开 →</a></div>'
+        f'<a href="{escape_html(url)}"{NEW_TAB}>在 GitHub 打开 →</a></div>'
     )
     if stats.replies:
         comments = "".join(
@@ -556,8 +559,8 @@ def detail_version_panel(posts: list[dict], fallback_html: str) -> str:
         )
     url = _safe_url(first.get("url"))
     link = (
-        f'<a id="discLink" href="{escape_html(url)}" target="_blank" '
-        'rel="noopener noreferrer">在 GitHub 打开本帖 →</a>'
+        f'<a id="discLink" href="{escape_html(url)}"{NEW_TAB}>'
+        "在 GitHub 打开本帖 →</a>"
     ) if url else ""
     head = (
         f'<div class="disc-head">{ICON_COMMENT}讨论'
