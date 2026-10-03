@@ -36,8 +36,8 @@ class FakeClient:
                  "url": f"https://github.com/u/r/discussions/{self._n}"}
             self.created.append({"variables": variables, "result": d})
             return {"createDiscussion": {"discussion": d}}
-        if "discussion(id" in query:
-            return {"discussion": {
+        if "node(id" in query:
+            return {"node": {
                 "title": "帖子", "url": "https://github.com/u/r/discussions/7",
                 "isAnswered": True,
                 "comments": {"totalCount": 2, "nodes": [
@@ -184,8 +184,22 @@ class TestCreateAndFetch(unittest.TestCase):
     def test_fetch_missing_node_returns_none(self):
         class EmptyClient:
             def execute(self, query, variables=None):
-                return {"discussion": None}
+                return {"node": None}
         self.assertIsNone(fetch_discussion_comments(EmptyClient(), "D_gone"))
+
+    def test_non_discussion_node_returns_none(self):
+        """内联片段未命中（id 指向 Issue 等）时必须按不存在处理。"""
+        class IssueNode:
+            def execute(self, query, variables=None):
+                return {"node": {"title": "不是讨论"}}
+        self.assertIsNone(fetch_discussion_comments(IssueNode(), "I_1"))
+
+    def test_query_uses_node_field_not_top_level_discussion(self):
+        """回归：顶层 Query 没有 discussion(id:)（线上 undefinedField）。"""
+        from userscript_manager.discussions import DISCUSSION_NODE_QUERY
+        self.assertIn("node(id: $id)", DISCUSSION_NODE_QUERY)
+        self.assertIn("... on Discussion", DISCUSSION_NODE_QUERY)
+        self.assertNotIn("discussion(id:", DISCUSSION_NODE_QUERY)
 
 
 if __name__ == "__main__":

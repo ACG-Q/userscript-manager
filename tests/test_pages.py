@@ -608,11 +608,11 @@ class TestFetchDiscussionPosts(ConfigIsolation):
     def test_posts_ordered_newest_first_with_counts(self):
         class Client:
             def execute(self, query, variables=None):
-                node = variables["id"]
-                return {"discussion": {
+                nid = variables["id"]
+                return {"node": {
                     "title": "版本帖",
-                    "url": f"https://github.com/t/r/discussions/{node[-1]}",
-                    "isAnswered": node == "D_9",
+                    "url": f"https://github.com/t/r/discussions/{nid[-1]}",
+                    "isAnswered": nid == "D_9",
                     "comments": {"totalCount": 1, "nodes": [{
                         "author": {"login": "u1"}, "authorAssociation": "NONE",
                         "body": "有问题", "createdAt": "2026-10-02T06:00:00Z",
@@ -666,7 +666,7 @@ class TestFetchDiscussionPosts(ConfigIsolation):
     def test_problems_collect_empty_discussion_nodes(self):
         class Client:
             def execute(self, query, variables=None):
-                return {"discussion": None}
+                return {"node": None}
 
         problems = []
         out = fetch_discussion_posts(

@@ -29,21 +29,27 @@ mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) 
 }
 """
 
+# 顶层 Query 上没有 discussion(id:) 字段（线上报 undefinedField），
+# 只能走通用 node(id) 查询，再用内联片段收窄到 Discussion。
 DISCUSSION_NODE_QUERY = """
 query($id: ID!) {
-  discussion(id: $id) {
-    title url isAnswered
-    comments(first: 100) {
-      totalCount
-      nodes {
-        author { login }
-        authorAssociation
-        body
-        createdAt
-        isAnswer
-        replies(first: 50) {
-          totalCount
-          nodes { author { login } authorAssociation body createdAt isAnswer }
+  node(id: $id) {
+    ... on Discussion {
+      title
+      url
+      isAnswered
+      comments(first: 100) {
+        totalCount
+        nodes {
+          author { login }
+          authorAssociation
+          body
+          createdAt
+          isAnswer
+          replies(first: 50) {
+            totalCount
+            nodes { author { login } authorAssociation body createdAt isAnswer }
+          }
         }
       }
     }
@@ -104,12 +110,13 @@ def _normalize_comment(raw: dict) -> dict:
 
 
 def fetch_discussion_comments(client, node_id: str) -> dict | None:
-    """按 node_id 拉取单帖：{title, url, is_answered, comments:[...]}；帖不存在返回 None。
+    """按 node_id 拉取单帖：{title, url, is_answered, comments:[...]}。
 
+    帖不存在、无读取权限、或节点不是 Discussion（内联片段未命中）时返回 None。
     评论取前 100/回复前 50（GraphQL connection 上限），超出以 comment_total 检测截断。"""
     data = client.execute(DISCUSSION_NODE_QUERY, {"id": node_id})
-    node = (data or {}).get("discussion")
-    if not node:
+    node = (data or {}).get("node") or {}
+    if "comments" not in node:
         return None
     comments = node.get("comments") or {}
     return {
