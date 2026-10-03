@@ -1,4 +1,219 @@
 {
   "schema": 1,
-  "scripts": []
+  "scripts": [
+    {
+      "id": "39280503d459",
+      "type": "synced",
+      "name": "All-in-One Video Downloader – HD (YouTube, TikTok, Instagram, X & More)",
+      "version": "1.0.18",
+      "description": "An all-in-one, fast, and free HD video downloader. Supports video downloads from YouTube, TikTok, Douyin, Instagram, Threads, XiaoHongShu, TED, Facebook, X (formerly Twitter), and more. Enjoy seamless, high-quality downloads with no watermarks.",
+      "author": "Daniel",
+      "namespace": "AllInOneDownloader_Daniel",
+      "match": [
+        "*://*/*"
+      ],
+      "grant": [
+        "GM_openInTab",
+        "GM.openInTab",
+        "GM_xmlhttpRequest",
+        "GM_addStyle",
+        "GM_setValue",
+        "GM_getValue",
+        "GM_download",
+        "unsafeWindow"
+      ],
+      "enabled": true,
+      "source_url": "https://greasyfork.org/zh-CN/scripts/563321-all-in-one-video-downloader-hd-youtube-tiktok-instagram-x-more",
+      "source_type": "greasyfork",
+      "created_at": "2026-10-02T13:18:05.535033Z",
+      "updated_at": "2026-10-02T13:18:05.535055Z",
+      "last_synced_at": "2026-10-02T13:18:05.535058Z",
+      "sync_enabled": true,
+      "documentation": "",
+      "changelog": [
+        {
+          "version": "1.0.18",
+          "date": "2026-10-02",
+          "note": "初始同步"
+        }
+      ],
+      "discussions": [
+        {
+          "version": "1.0.18",
+          "number": 6,
+          "node_id": "D_kwDOU4WJpM4ApuCB",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/6",
+          "created_at": "2026-10-02"
+        }
+      ],
+      "deleted": false,
+      "issue": {
+        "number": 2,
+        "node_id": "I_kwDOU4WJpM8AAAABUm70JA",
+        "url": "https://github.com/ACG-Q/userscript-manager/issues/2"
+      }
+    },
+    {
+      "id": "809d5f149376",
+      "type": "synced",
+      "name": "Github Enhancement - High Speed Download",
+      "version": "2.6.41",
+      "description": "High-speed download of Git Clone/SSH, Release, Raw, Code(ZIP) and other files (Based on public welfare), project list file quick download (☁)",
+      "author": "X.I.U",
+      "namespace": "https://greasyfork.org/scripts/412245",
+      "match": [
+        "*://github.com/*",
+        "*://bgithub.xyz/*"
+      ],
+      "grant": [
+        "GM_registerMenuCommand",
+        "GM_unregisterMenuCommand",
+        "GM_openInTab",
+        "GM_getValue",
+        "GM_setValue",
+        "GM_notification",
+        "GM_setClipboard",
+        "window.onurlchange"
+      ],
+      "enabled": true,
+      "source_url": "https://github.com/XIU2/UserScript/raw/refs/heads/master/GithubEnhanced-High-Speed-Download.user.js",
+      "source_type": "github_raw",
+      "created_at": "2026-10-02T13:19:01.578951Z",
+      "updated_at": "2026-10-02T13:19:01.578971Z",
+      "last_synced_at": "2026-10-02T13:19:01.578974Z",
+      "sync_enabled": true,
+      "documentation": "",
+      "changelog": [
+        {
+          "version": "2.6.41",
+          "date": "2026-10-02",
+          "note": "初始同步"
+        }
+      ],
+      "discussions": [
+        {
+          "version": "2.6.41",
+          "number": 7,
+          "node_id": "D_kwDOU4WJpM4ApuCC",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/7",
+          "created_at": "2026-10-02"
+        }
+      ],
+      "deleted": false,
+      "issue": {
+        "number": 3,
+        "node_id": "I_kwDOU4WJpM8AAAABUm8e3g",
+        "url": "https://github.com/ACG-Q/userscript-manager/issues/3"
+      }
+    },
+    {
+      "id": "cca0e83ed261",
+      "type": "synced",
+      "name": "Bilibili Evolved",
+      "version": "2.11.4",
+      "description": "强大的哔哩哔哩增强脚本",
+      "author": "Grant Howard, Coulomb-G",
+      "namespace": "",
+      "match": [
+        "*://*.bilibili.com/*"
+      ],
+      "grant": [
+        "unsafeWindow",
+        "GM_getValue",
+        "GM_setValue",
+        "GM_deleteValue",
+        "GM_info",
+        "GM_xmlhttpRequest",
+        "GM_registerMenuCommand",
+        "GM_unregisterMenuCommand"
+      ],
+      "enabled": true,
+      "source_url": "https://raw.githubusercontent.com/the1812/Bilibili-Evolved/master/dist/bilibili-evolved.user.js",
+      "source_type": "github_raw",
+      "created_at": "2026-10-02T13:19:40.166691Z",
+      "updated_at": "2026-10-02T13:19:40.166709Z",
+      "last_synced_at": "2026-10-02T13:19:40.166711Z",
+      "sync_enabled": true,
+      "documentation": "",
+      "changelog": [
+        {
+          "version": "2.11.4",
+          "date": "2026-10-02",
+          "note": "初始同步"
+        }
+      ],
+      "discussions": [
+        {
+          "version": "2.11.4",
+          "number": 8,
+          "node_id": "D_kwDOU4WJpM4ApuCE",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/8",
+          "created_at": "2026-10-02"
+        }
+      ],
+      "deleted": false,
+      "issue": {
+        "number": 4,
+        "node_id": "I_kwDOU4WJpM8AAAABUm878Q",
+        "url": "https://github.com/ACG-Q/userscript-manager/issues/4"
+      }
+    },
+    {
+      "id": "3f45ee3c-4669-41aa-aa27-0fceff6d2f06",
+      "type": "self",
+      "name": "我的去广告脚本",
+      "version": "1.0.1",
+      "description": "",
+      "author": "Your Name",
+      "namespace": "https://your-namespace.com",
+      "match": [
+        "*://*/*"
+      ],
+      "grant": [
+        "none"
+      ],
+      "enabled": true,
+      "created_at": "2026-10-02T13:22:54.597211Z",
+      "updated_at": "2026-10-02T13:33:46.312992Z",
+      "source_url": null,
+      "source_type": null,
+      "last_synced_at": null,
+      "sync_enabled": false,
+      "documentation": "# 我的去广告脚本\n\n```javascript\n// ==UserScript==\n// @name 我的去广告脚本\n// @version 1.0.0\n// @match *://*/*\n// @grant none\n// ==/UserScript==\n(function() { console.log('Hello'); })();\n```",
+      "changelog": [
+        {
+          "version": "1.0.1",
+          "date": "2026-10-02",
+          "note": "手动更新"
+        },
+        {
+          "version": "1.0.0",
+          "date": "2026-10-02",
+          "note": "初始版本"
+        }
+      ],
+      "discussions": [
+        {
+          "version": "1.0.0",
+          "number": 9,
+          "node_id": "D_kwDOU4WJpM4ApuCF",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/9",
+          "created_at": "2026-10-02"
+        },
+        {
+          "version": "1.0.1",
+          "number": 10,
+          "node_id": "D_kwDOU4WJpM4ApuCc",
+          "url": "https://github.com/ACG-Q/userscript-manager/discussions/10",
+          "created_at": "2026-10-02"
+        }
+      ],
+      "deleted": false,
+      "issue": {
+        "number": 5,
+        "node_id": "I_kwDOU4WJpM8AAAABUm_Qhg",
+        "url": "https://github.com/ACG-Q/userscript-manager/issues/5"
+      }
+    }
+  ]
 }
