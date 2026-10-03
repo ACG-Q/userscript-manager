@@ -1,9 +1,13 @@
 import json
-from ..config import get_install_url
+from typing import Any
+
 from ..commands import register
+from ..config import get_install_url
+
 
 @register("export")
-def execute(registry, args, code, markdown, has_code_block):
+def execute(registry: dict[str, Any], args: str, code: str,
+            markdown: str, has_code_block: bool) -> str:
     """/export [md|json]：导出脚本清单，默认 Markdown 表格。"""
     visible = [s for s in registry["scripts"] if not s.get("deleted")]
     if not visible:
@@ -16,7 +20,7 @@ def execute(registry, args, code, markdown, has_code_block):
     else:
         return export_markdown(visible)
 
-def export_markdown(scripts):
+def export_markdown(scripts: list[dict[str, Any]]) -> str:
     """渲染 Markdown 安装列表（状态/类型/ID/名称/版本/链接）。"""
     lines = [
         "# 油猴脚本安装列表",
@@ -36,7 +40,7 @@ def export_markdown(scripts):
     
     return "\n".join(lines)
 
-def export_json(scripts):
+def export_json(scripts: list[dict[str, Any]]) -> str:
     """导出 JSON 清单（含安装链接，便于外部消费）。"""
     export_data = {
         "scripts": [

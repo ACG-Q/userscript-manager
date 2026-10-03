@@ -8,12 +8,16 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
+from project_issues import ensure_label_id, list_all_issues, list_all_labels, project
 from tests._helpers import ConfigIsolation
-from userscript_manager.registry import load_registry
 from userscript_manager.issue_page import (
-    build_issue_body, build_marker, build_title, tombstone_body, tombstone_title,
+    build_issue_body,
+    build_marker,
+    build_title,
+    tombstone_body,
+    tombstone_title,
 )
-from project_issues import project, list_all_issues, list_all_labels, ensure_label_id
+from userscript_manager.registry import load_registry
 
 
 def make_script(**overrides):
@@ -34,7 +38,7 @@ class FakeClient:
     """投影器测试替身：按查询片段路由，记录创建/更新动作。"""
     def __init__(self, issues=None, labels=None, fail_label=False, fail_discussion=False):
         self.issues = [dict(d) for d in (issues or [])]
-        self.labels = [dict(l) for l in (
+        self.labels = [dict(entry) for entry in (
             labels if labels is not None else [{"id": "LBL_script", "name": "script"}]
         )]
         self.fail_label = fail_label
@@ -51,7 +55,7 @@ class FakeClient:
         variables = variables or {}
         if "labels(first" in query:
             return {"repository": {"labels": {
-                "nodes": [dict(l) for l in self.labels],
+                "nodes": [dict(entry) for entry in self.labels],
                 "pageInfo": {"hasNextPage": False, "endCursor": None}}}}
         if "issues(first" in query:
             self.list_queries.append(query)
@@ -249,7 +253,7 @@ class TestLabelPagination(unittest.TestCase):
         # script 标签排在第二页时必须翻页找到，不能误判缺失而重复创建
         client = PagedLabelsClient()
         labels = list_all_labels(client, "o", "r")
-        self.assertEqual([l["id"] for l in labels], ["LBL_a", "LBL_script"])
+        self.assertEqual([label["id"] for label in labels], ["LBL_a", "LBL_script"])
         self.assertEqual(client.calls, 2)
         self.assertEqual(ensure_label_id(client, "REPO_NODE", labels), "LBL_script")
 

@@ -1,7 +1,11 @@
+from typing import Any
+
 from ..commands import register
 
+
 @register("list")
-def execute(registry, args, code, markdown, has_code_block):
+def execute(registry: dict[str, Any], args: str, code: str,
+            markdown: str, has_code_block: bool) -> str:
     """/list：列出全部未软删的脚本及启用/同步状态。"""
     visible = [s for s in registry["scripts"] if not s.get("deleted")]
     if not visible:
@@ -13,7 +17,8 @@ def execute(registry, args, code, markdown, has_code_block):
         script_type = "📝" if s["type"] == "self" else "🔄"
         sync_status = ""
         if s["type"] == "synced":
-            last_sync = s.get("last_synced_at", "从未")
+            # 显式为 None 时也要能显示（老数据里 last_synced_at 可能是 null）
+            last_sync = s.get("last_synced_at") or "从未"
             if last_sync != "从未":
                 sync_status = f" (上次同步: {last_sync[:10]})"
             else:

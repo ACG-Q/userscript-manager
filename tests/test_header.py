@@ -8,7 +8,11 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
-from userscript_manager.utils import build_userscript_header, ensure_userscript_urls, sync_header_version
+from userscript_manager.utils import (
+    build_userscript_header,
+    ensure_userscript_urls,
+    sync_header_version,
+)
 
 FULL_HEADER = """// ==UserScript==
 // @name         甲

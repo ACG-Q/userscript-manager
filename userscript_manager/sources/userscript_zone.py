@@ -1,5 +1,7 @@
 from bs4 import BeautifulSoup
+
 from .base import BaseSourceAdapter, ScriptSource, http_get
+
 
 class UserscriptZoneAdapter(BaseSourceAdapter):
     """Userscript.zone 来源适配器。"""

@@ -63,6 +63,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run manager
+        id: manager
         if: steps.gate.outputs.authorized == 'true'
         env:
           COMMENT_BODY: ${{ github.event.comment.body }}
@@ -116,15 +117,31 @@ jobs:
             echo "⚠️ 站点部署派发失败（不阻断），安装链接可能滞后，可手动触发 Deploy 工作流" >> command_result.txt
           fi
 
+      # 即使前面步骤失败也必须回帖，否则提问者只会得到一条永远没有结果的评论
       - name: Reply to comment
-        if: steps.gate.outputs.authorized == 'true'
+        if: ${{ !cancelled() && steps.gate.outputs.authorized == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          MANAGER_OUTCOME: ${{ steps.manager.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
         run: |
           if [ -f command_result.txt ]; then
             RESULT=$(cat command_result.txt)
           else
+            RESULT=""
+          fi
+          if [ "$MANAGER_OUTCOME" != "success" ]; then
+            FAIL_MSG="⚠️ 命令执行失败（Run manager: $MANAGER_OUTCOME），请打开本次运行日志查看。"
+            if [ -n "$RESULT" ]; then
+              RESULT="$FAIL_MSG"$'\n\n'"$RESULT"
+            else
+              RESULT="$FAIL_MSG"
+            fi
+          elif [ "$COMMIT_OUTCOME" != "success" ] && [ "$COMMIT_OUTCOME" != "skipped" ]; then
+            if [ -z "$RESULT" ]; then RESULT="操作完成"; fi
+            RESULT="$RESULT"$'\n'"⚠️ 提交/推送失败（Commit changes: $COMMIT_OUTCOME），改动未入库，请打开本次运行日志查看。"
+          elif [ -z "$RESULT" ]; then
             RESULT="操作完成"
           fi
           gh issue comment $ISSUE_NUMBER -R ${{ github.repository }} --body "**执行结果：**"$'\n'"$RESULT"

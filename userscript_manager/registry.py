@@ -4,8 +4,13 @@
 - 新增条目走 add_script，一步完成改内存+落盘；
 - 字段级就地修改（命令直接改 script dict，含软删除/复活）之后用 save_registry 落盘。
 """
+from __future__ import annotations
+
 import json
 import os
+from pathlib import Path
+from typing import Any
+
 from .config import CONFIG
 
 
@@ -13,13 +18,13 @@ class RegistryError(Exception):
     """registry.json 存在但无法解析时抛出，携带文件路径与修复提示。"""
 
 
-def load_registry() -> dict:
+def load_registry() -> dict[str, Any]:
     """读取并校验 registry.json；文件缺失返回空库，损坏抛 RegistryError。"""
     path = CONFIG["registry_file"]
     if path.exists():
         try:
             with open(path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+                data: dict[str, Any] = json.load(f)
         except json.JSONDecodeError as e:
             raise RegistryError(
                 f"registry.json 已损坏（{path}）：{e}。"
@@ -36,7 +41,7 @@ def load_registry() -> dict:
     return {"scripts": []}
 
 
-def _validate_registry(data: dict, path) -> None:
+def _validate_registry(data: object, path: Path) -> None:
     """加载即校验结构，避免把 KeyError 延迟到运行时才发现脏数据。"""
     hint = "请用 Git 历史恢复该文件，不要直接删除。"
     if not isinstance(data, dict):
@@ -58,7 +63,7 @@ def _validate_registry(data: dict, path) -> None:
             )
 
 
-def save_registry(registry: dict) -> None:
+def save_registry(registry: dict[str, Any]) -> None:
     """原子落盘（临时文件 + os.replace），避免写一半损坏。"""
     path = CONFIG["registry_file"]
     tmp = path.parent / (path.name + ".tmp")
@@ -67,23 +72,26 @@ def save_registry(registry: dict) -> None:
     os.replace(tmp, path)
 
 
-def find_script(registry: dict, script_id: str) -> dict | None:
+def find_script(registry: dict[str, Any], script_id: str) -> dict[str, Any] | None:
     """按 ID 查找脚本记录，未命中返回 None。"""
-    for s in registry["scripts"]:
+    scripts: list[dict[str, Any]] = registry["scripts"]
+    for s in scripts:
         if s["id"] == script_id:
             return s
     return None
 
 
-def find_script_by_source_url(registry: dict, source_url: str) -> dict | None:
+def find_script_by_source_url(registry: dict[str, Any],
+                              source_url: str) -> dict[str, Any] | None:
     """按来源 URL 查找同步脚本，未命中返回 None（防重复添加）。"""
-    for s in registry["scripts"]:
+    scripts: list[dict[str, Any]] = registry["scripts"]
+    for s in scripts:
         if s.get("source_url") == source_url:
             return s
     return None
 
 
-def add_script(registry: dict, script_meta: dict) -> None:
+def add_script(registry: dict[str, Any], script_meta: dict[str, Any]) -> None:
     """追加新脚本并立即落盘（结构性变更的唯一入口之一）。"""
     registry["scripts"].append(script_meta)
     save_registry(registry)

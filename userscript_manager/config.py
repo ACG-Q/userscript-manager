@@ -1,9 +1,12 @@
 import os
 from pathlib import Path
+from typing import Any
 
 PROJECT_ROOT = Path(__file__).parent.parent
 
-CONFIG = {
+# 异构配置表（路径 / 字符串 / 嵌套字典）：显式标注为 dict[str, Any]，
+# 否则 mypy 会把它推断成 dict[str, object] 并在所有下标处报错。
+CONFIG: dict[str, Any] = {
     "author": {
         # 用 `or` 而非 getenv 默认值：workflow 透传的 vars 未配置时是空串而非未设置
         "name": os.getenv("AUTHOR_NAME") or "Your Name",
@@ -27,7 +30,7 @@ CONFIG = {
 def get_pages_base_url() -> str:
     """Get GitHub Pages base URL for dist files."""
     if CONFIG["github_pages"]["base_url"]:
-        return CONFIG["github_pages"]["base_url"].rstrip("/")
+        return str(CONFIG["github_pages"]["base_url"]).rstrip("/")
     repo = CONFIG["github_repo"]
     owner, name = repo.split("/") if "/" in repo else (repo, "")
     return f"https://{owner}.github.io/{name}"

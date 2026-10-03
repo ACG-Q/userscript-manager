@@ -1,15 +1,22 @@
-import sys
 import io
+import sys
 import unittest
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 from tests._helpers import ConfigIsolation
-from userscript_manager.issue_parser import parse_comment, extract_first_code_block, extract_all_code_blocks
+from userscript_manager.issue_parser import (
+    extract_all_code_blocks,
+    extract_first_code_block,
+    parse_comment,
+)
 from userscript_manager.utils import (
-    extract_meta_from_code, strip_header, increment_version, build_dist_for_synced,
+    build_dist_for_synced,
     build_userscript_header,
+    extract_meta_from_code,
+    increment_version,
+    strip_header,
 )
 
 

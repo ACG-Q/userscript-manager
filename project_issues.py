@@ -10,12 +10,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 import requests
 
 from userscript_manager.discussions import create_discussion, resolve_qa_category
-from userscript_manager.registry import load_registry, save_registry
 from userscript_manager.issue_page import (
-    build_discussion_body, build_discussion_title,
-    build_issue_body, build_title, script_id_from_body,
-    tombstone_body, tombstone_title,
+    build_discussion_body,
+    build_discussion_title,
+    build_issue_body,
+    build_title,
+    script_id_from_body,
+    tombstone_body,
+    tombstone_title,
 )
+from userscript_manager.registry import load_registry, save_registry
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 LABEL_NAME = "script"

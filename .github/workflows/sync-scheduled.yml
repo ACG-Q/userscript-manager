@@ -11,6 +11,8 @@ permissions:
   contents: write
   issues: write
   actions: write
+  # project_issues 会对新版本创建版本帖（createDiscussion），缺此权限会 403 静默降级
+  discussions: write
 
 concurrency:
   group: scheduled-sync

@@ -11,11 +11,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 import markdown as md
 import nh3
 
-from userscript_manager.config import CONFIG, get_install_url
-from userscript_manager.discussions import fetch_discussion_comments
-from userscript_manager.issue_stats import clip, fetch_stats, relative_time
-from userscript_manager.escaping import escape_html
-from userscript_manager.registry import load_registry
 from pages_assets import (
     COMPONENT_CSS,
     DISC_JS,
@@ -24,6 +19,11 @@ from pages_assets import (
     PREVIEW_CSS,
     TOKEN_CSS,
 )
+from userscript_manager.config import CONFIG, get_install_url
+from userscript_manager.discussions import fetch_discussion_comments
+from userscript_manager.escaping import escape_html
+from userscript_manager.issue_stats import clip, fetch_stats, relative_time
+from userscript_manager.registry import load_registry
 
 BRAND = "油猴脚本管理器"
 BRAND_SHORT = "脚本管理器"

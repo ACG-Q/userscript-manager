@@ -1,19 +1,14 @@
-import os
-import sys
 import io
+import sys
 import unittest
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-from tests._helpers import ConfigIsolation, FRESH_REGISTRY
+from tests._helpers import FRESH_REGISTRY, ConfigIsolation
+from userscript_manager.commands import get_command
 from userscript_manager.config import CONFIG
 from userscript_manager.registry import load_registry, save_registry
-
-from userscript_manager.commands import get_command
-import userscript_manager.commands.sync
-import userscript_manager.commands.add
-import userscript_manager.commands.update
 
 
 class TestSyncPersistence(ConfigIsolation):
@@ -50,7 +45,6 @@ class TestSyncPersistence(ConfigIsolation):
         save_registry(self.registry)
 
         # Patch the adapter fetch to return a newer version
-        from userscript_manager.sources import direct_url
         import requests
 
         original_code = """// ==UserScript==

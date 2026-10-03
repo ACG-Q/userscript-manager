@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "scripts": [
+    {
+      "id": "golden01",
+      "type": "self",
+      "name": "基线脚本 | 演示",
+      "version": "1.2.3",
+      "description": "用于锁定输出基线的脚本",
+      "author": "基线作者",
+      "namespace": "https://example.com",
+      "match": [
+        "*://a/*",
+        "*://b/*"
+      ],
+      "grant": [
+        "none"
+      ],
+      "enabled": true,
+      "source_url": null,
+      "source_type": null,
+      "created_at": "2026-01-02T03:04:05Z",
+      "updated_at": "2026-01-03T04:05:06Z",
+      "last_synced_at": null,
+      "sync_enabled": false,
+      "deleted": false,
+      "documentation": "# 文档\n\n含 **Markdown** 的文档。",
+      "changelog": [
+        {
+          "version": "1.2.3",
+          "date": "2026-01-03",
+          "note": "修复"
+        },
+        {
+          "version": "1.2.0",
+          "date": "2026-01-01",
+          "note": "初始版本"
+        }
+      ],
+      "discussions": [
+        {
+          "version": "1.2.3",
+          "number": 9,
+          "node_id": "D_9",
+          "url": "https://github.com/o/r/discussions/9",
+          "created_at": "2026-01-03"
+        },
+        {
+          "version": "1.2.0",
+          "number": 7,
+          "node_id": "D_7",
+          "url": "https://github.com/o/r/discussions/7",
+          "created_at": "2026-01-01"
+        }
+      ],
+      "issue": {
+        "number": 4,
+        "node_id": "I_4",
+        "url": "https://github.com/o/r/issues/4"
+      }
+    }
+  ]
+}

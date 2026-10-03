@@ -10,14 +10,21 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
-from tests._helpers import ConfigIsolation
-from userscript_manager.config import CONFIG
-
-from build_pages import build_index, build_detail, build_site, render_markdown, empty_state
-from build_pages import fetch_discussion_posts, COMPONENT_CSS, TOKEN_CSS
+from build_pages import (
+    COMPONENT_CSS,
+    TOKEN_CSS,
+    build_detail,
+    build_index,
+    build_site,
+    empty_state,
+    fetch_discussion_posts,
+    render_markdown,
+)
+from build_pages import DISC_JS as DISC_JS_SRC
 from build_pages import FILTER_JS as FILTER_JS_SRC
 from build_pages import LIST_JS as LIST_JS_SRC
-from build_pages import DISC_JS as DISC_JS_SRC
+from tests._helpers import ConfigIsolation
+from userscript_manager.config import CONFIG
 from userscript_manager.issue_stats import IssueStats, LatestReply
 
 

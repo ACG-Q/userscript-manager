@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 from typing import Optional
 
+
 @dataclass
 class ParsedComment:
     """一条评论的解析结果：命令、参数、Markdown 正文与首个代码块。"""

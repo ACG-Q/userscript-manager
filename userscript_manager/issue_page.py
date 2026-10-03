@@ -6,6 +6,7 @@
 """
 import re
 from datetime import date
+from typing import Any
 
 from .config import get_install_url, get_pages_base_url
 from .escaping import escape_md_cell
@@ -24,7 +25,7 @@ def script_id_from_body(body: str) -> str | None:
     return m.group(1) if m else None
 
 
-def build_title(script: dict) -> str:
+def build_title(script: dict[str, Any]) -> str:
     """生成脚本 Issue 标题（📝 前缀 + 转义名称）。"""
     return f"📝 {escape_md_cell(script.get('name', script['id']))}"
 
@@ -34,7 +35,7 @@ def tombstone_title(title: str) -> str:
     return title if title.startswith("[已删除]") else f"[已删除] {title}"
 
 
-def _status_cell(script: dict) -> str:
+def _status_cell(script: dict[str, Any]) -> str:
     """状态三态：软删 → 已删除；enabled=false → 已停用；否则已启用。"""
     if script.get("deleted"):
         return "🗑️ 已删除"
@@ -43,7 +44,7 @@ def _status_cell(script: dict) -> str:
     return "✅ 已启用"
 
 
-def _source_cell(script: dict) -> str:
+def _source_cell(script: dict[str, Any]) -> str:
     """来源单元格：本仓库自写，或外部来源类型 + 原帖链接。"""
     url = script.get("source_url")
     if not url:
@@ -52,7 +53,7 @@ def _source_cell(script: dict) -> str:
     return f"{stype} · [来源页]({escape_md_cell(url)})"
 
 
-def build_issue_index(discussions: list) -> str:
+def build_issue_index(discussions: list[dict[str, Any]]) -> str:
     """版本帖索引表体：倒序累积，空列表返回占位行；残缺条目降级不抛错。"""
     if not discussions:
         return "| - | - | 暂无版本帖 |"
@@ -73,7 +74,7 @@ def build_issue_index(discussions: list) -> str:
     return "\n".join(rows)
 
 
-def tombstone_body(name: str, discussions: list | None = None) -> str:
+def tombstone_body(name: str, discussions: list[dict[str, Any]] | None = None) -> str:
     """墓碑正文：保留历史讨论的说明 + 历史版本帖回链（不携带 script-id 标记）。
 
     无 number 的残缺条目无法回链，直接跳过该行。
@@ -96,7 +97,7 @@ def tombstone_body(name: str, discussions: list | None = None) -> str:
     return "\n".join(lines) + "\n"
 
 
-def build_issue_body(script: dict) -> str:
+def build_issue_body(script: dict[str, Any]) -> str:
     """Issue 数据面板正文（活字段 + 版本帖索引），幂等可对账（D5）。"""
     sid = script["id"]
     name = escape_md_cell(script.get("name", sid))
@@ -128,7 +129,7 @@ def build_issue_body(script: dict) -> str:
     return "\n".join(lines)
 
 
-def build_discussion_title(script: dict, today: str | None = None) -> str:
+def build_discussion_title(script: dict[str, Any], today: str | None = None) -> str:
     """版本帖标题：`[vX.Y.Z] 名称 YYYY-MM-DD`；缺版本用 [初始版本]（D1）。"""
     day = today or date.today().isoformat()
     version = script.get("version")
@@ -136,7 +137,8 @@ def build_discussion_title(script: dict, today: str | None = None) -> str:
     return f"[{tag}] {script.get('name', script['id'])} {day}"
 
 
-def build_discussion_body(script: dict, prev_version: str | None = None) -> str:
+def build_discussion_body(script: dict[str, Any],
+                          prev_version: str | None = None) -> str:
     """版本帖正文：全量快照 + 描述 + 本次更新 + 文档 + 更新历史 + 回链（D6）。
 
     prev_version 为 None 表示首帖（`首次发布`），否则渲染 `自 vX 更新至 vY`。

@@ -3,8 +3,8 @@ import unittest
 from userscript_manager.sources import get_adapter, get_all_adapters
 from userscript_manager.sources.base import BROWSER_HEADERS, http_get
 from userscript_manager.sources.direct_url import DirectUrlAdapter
-from userscript_manager.sources.greasyfork import GreasyForkAdapter
 from userscript_manager.sources.github_gist import GitHubGistAdapter, pick_gist_file
+from userscript_manager.sources.greasyfork import GreasyForkAdapter
 from userscript_manager.utils import extract_meta_from_code
 
 
@@ -202,8 +202,9 @@ class TestGreasyForkFetchFallbacks(unittest.TestCase):
 
     def _fetch_with(self, responses):
         """responses: url -> 正文字符串（200）或状态码整数（模拟 HTTP 错误）。"""
-        import userscript_manager.sources.base as base_mod
         import requests as requests_lib
+
+        import userscript_manager.sources.base as base_mod
 
         calls = []
 

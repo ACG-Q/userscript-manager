@@ -9,9 +9,15 @@ os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
 from userscript_manager.issue_page import (
-    build_discussion_body, build_discussion_title, build_issue_body,
-    build_issue_index, build_marker, build_title, script_id_from_body,
-    tombstone_body, tombstone_title,
+    build_discussion_body,
+    build_discussion_title,
+    build_issue_body,
+    build_issue_index,
+    build_marker,
+    build_title,
+    script_id_from_body,
+    tombstone_body,
+    tombstone_title,
 )
 
 

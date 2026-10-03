@@ -73,8 +73,9 @@ class GreasyForkAdapter(BaseSourceAdapter):
             return code
 
         link = soup.find("a", href=_INSTALL_LINK_RE)
-        if link:
-            code = self._safe_get(link["href"], attempts, "安装直链")
+        href = link["href"] if link is not None else None
+        if isinstance(href, str):
+            code = self._safe_get(href, attempts, "安装直链")
             if self._is_script(code):
                 return code
 

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -24,7 +24,7 @@ def http_get(url: str, timeout: int = 15) -> requests.Response:
 class ScriptSource:
     """Parsed script from a source."""
     code: str              # Raw script code (with header)
-    meta: dict             # Extracted metadata
+    meta: dict[str, Any]   # Extracted metadata
     source_url: str        # Original URL
     source_type: str       # e.g., "greasyfork", "userscript_zone", "github_gist", "direct"
 
@@ -50,7 +50,7 @@ class BaseSourceAdapter(ABC):
         host = host.lower()
         return any(host == d or host.endswith("." + d) for d in self.domains)
 
-    def _extract_meta(self, code: str) -> dict:
+    def _extract_meta(self, code: str) -> dict[str, Any]:
         """共享元数据解析器，适配器不再各自复制实现。"""
         return extract_meta_from_code(code)
 

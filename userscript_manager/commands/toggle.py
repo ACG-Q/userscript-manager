@@ -1,10 +1,13 @@
-from ..registry import save_registry, find_script
-from ..utils import now_iso
+from typing import Any
+
 from ..commands import register
+from ..registry import find_script, save_registry
+from ..utils import now_iso
 
 
 @register("enable")
-def execute_enable(registry, args, code, markdown, has_code_block):
+def execute_enable(registry: dict[str, Any], args: str, code: str,
+                   markdown: str, has_code_block: bool) -> str:
     """/enable <id>：重新启用已禁用的脚本，并记录 updated_at。"""
     if not args:
         return "❌ 请提供脚本 ID，例如 /enable <script_id>"
@@ -23,7 +26,8 @@ def execute_enable(registry, args, code, markdown, has_code_block):
 
 
 @register("disable")
-def execute_disable(registry, args, code, markdown, has_code_block):
+def execute_disable(registry: dict[str, Any], args: str, code: str,
+                    markdown: str, has_code_block: bool) -> str:
     """/disable <id>：禁用脚本（安装链接停用），并记录 updated_at。"""
     if not args:
         return "❌ 请提供脚本 ID，例如 /disable <script_id>"

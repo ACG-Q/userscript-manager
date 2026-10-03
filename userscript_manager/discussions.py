@@ -5,6 +5,8 @@ client 为鸭子类型（只需 .execute(query, variables)），不反向依赖�
 
 from __future__ import annotations
 
+from typing import Any
+
 from .issue_stats import OWNER_ASSOCIATIONS
 
 CATEGORY_PAGE_SIZE = 100
@@ -60,7 +62,7 @@ query($id: ID!) {
 _CATEGORY_CACHE: dict[str, str] = {}
 
 
-def resolve_qa_category(client, owner: str, name: str) -> str:
+def resolve_qa_category(client: Any, owner: str, name: str) -> str:
     """解析仓库 Q&A 讨论分类 id（进程内缓存，缺分类抛带指引的 RuntimeError）。"""
     key = f"{owner}/{name}"
     if key in _CATEGORY_CACHE:
@@ -73,7 +75,7 @@ def resolve_qa_category(client, owner: str, name: str) -> str:
         for node in container.get("nodes") or []:
             if (node.get("name") or "").strip().lower() == "q&a":
                 _CATEGORY_CACHE[key] = node["id"]
-                return node["id"]
+                return str(node["id"])
         page = container.get("pageInfo") or {}
         if not page.get("hasNextPage"):
             break
@@ -86,8 +88,8 @@ def resolve_qa_category(client, owner: str, name: str) -> str:
     )
 
 
-def create_discussion(client, repository_id: str, category_id: str,
-                      title: str, body: str) -> dict:
+def create_discussion(client: Any, repository_id: str, category_id: str,
+                      title: str, body: str) -> dict[str, Any]:
     """创建讨论帖，返回 {id, number, url}。"""
     data = client.execute(CREATE_DISCUSSION_MUTATION, {
         "repositoryId": repository_id,
@@ -95,10 +97,11 @@ def create_discussion(client, repository_id: str, category_id: str,
         "title": title,
         "body": body,
     })
-    return data["createDiscussion"]["discussion"]
+    created: dict[str, Any] = data["createDiscussion"]["discussion"]
+    return created
 
 
-def _normalize_comment(raw: dict) -> dict:
+def _normalize_comment(raw: dict[str, Any]) -> dict[str, Any]:
     return {
         "author": ((raw.get("author") or {}).get("login")) or "未知用户",
         "is_owner": raw.get("authorAssociation") in OWNER_ASSOCIATIONS,
@@ -109,7 +112,7 @@ def _normalize_comment(raw: dict) -> dict:
     }
 
 
-def fetch_discussion_comments(client, node_id: str) -> dict | None:
+def fetch_discussion_comments(client: Any, node_id: str) -> dict[str, Any] | None:
     """按 node_id 拉取单帖：{title, url, is_answered, comments:[...]}。
 
     帖不存在、无读取权限、或节点不是 Discussion（内联片段未命中）时返回 None。

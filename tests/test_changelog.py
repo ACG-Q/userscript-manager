@@ -8,13 +8,10 @@ if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
 os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
+from userscript_manager.commands import get_command
+from userscript_manager.issue_parser import parse_comment
 from userscript_manager.registry import load_registry, save_registry
 from userscript_manager.utils import add_changelog
-from userscript_manager.issue_parser import parse_comment
-from userscript_manager.commands import get_command
-import userscript_manager.commands.add
-import userscript_manager.commands.update
-import userscript_manager.commands.sync
 
 SCRIPT = """// ==UserScript==
 // @name 脚本甲

@@ -12,19 +12,11 @@ os.environ.setdefault("AUTHOR_NAMESPACE", "https://test.dev")
 os.environ.setdefault("GITHUB_REPOSITORY", "testuser/testrepo")
 os.environ.setdefault("GITHUB_REF_NAME", "main")
 
-from tests._helpers import ConfigIsolation, FRESH_REGISTRY
-from userscript_manager.config import CONFIG
-from userscript_manager.registry import load_registry
-from userscript_manager.issue_parser import parse_comment
-import userscript_manager.commands.list
-import userscript_manager.commands.add
-import userscript_manager.commands.update
-import userscript_manager.commands.sync
-import userscript_manager.commands.info
-import userscript_manager.commands.toggle
-import userscript_manager.commands.export
-import userscript_manager.commands.remove
+from tests._helpers import FRESH_REGISTRY, ConfigIsolation
 from userscript_manager.commands import get_command
+from userscript_manager.config import CONFIG
+from userscript_manager.issue_parser import parse_comment
+from userscript_manager.registry import load_registry
 
 SCRIPT = """// ==UserScript==
 // @name 测试脚本

@@ -6,8 +6,6 @@ import os
 import unittest
 from pathlib import Path
 
-from tests._helpers import ConfigIsolation
-from userscript_manager.config import CONFIG
 from panel_cleanup import (
     fetch_panel_comments,
     group_commands,
@@ -16,6 +14,8 @@ from panel_cleanup import (
     merge_archive,
     process,
 )
+from tests._helpers import ConfigIsolation
+from userscript_manager.config import CONFIG
 
 
 def comment(body, cid, author="ACG-Q"):

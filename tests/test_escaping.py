@@ -1,5 +1,5 @@
-import sys
 import io
+import sys
 import unittest
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":

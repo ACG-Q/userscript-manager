@@ -1,15 +1,25 @@
-from ..config import get_install_url
-from ..registry import save_registry, find_script
-from ..utils import (
-    build_userscript_header, extract_meta_from_code, increment_version,
-    write_dist_file, write_source_file, save_documentation, now_iso,
-    add_changelog, format_js_code
-)
+from typing import Any
+
 from ..commands import register
+from ..config import get_install_url
 from ..issue_parser import remove_code_blocks
+from ..registry import find_script, save_registry
+from ..utils import (
+    add_changelog,
+    build_userscript_header,
+    extract_meta_from_code,
+    format_js_code,
+    increment_version,
+    now_iso,
+    save_documentation,
+    write_dist_file,
+    write_source_file,
+)
+
 
 @register("up")
-def execute(registry, args, code, markdown, has_code_block):
+def execute(registry: dict[str, Any], args: str, code: str,
+            markdown: str, has_code_block: bool) -> str:
     """/up <id>：用新代码块更新脚本，版本自增并记录 changelog。"""
     if not args:
         return "❌ 请提供要更新的脚本 ID，例如 /up <script_id>"

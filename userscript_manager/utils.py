@@ -1,10 +1,14 @@
-import re
 import hashlib
+import re
 import uuid
-import jsbeautifier
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
+
+import jsbeautifier
+
 from .config import CONFIG, get_install_url
+
 
 def format_js_code(code: str) -> str:
     """统一美化 JS 源码（2 空格缩进、保留换行），自写脚本入库前调用。"""
@@ -14,9 +18,9 @@ def format_js_code(code: str) -> str:
     options.preserve_newlines = True
     options.jslint_happy = True
     options.end_with_newline = True
-    return jsbeautifier.beautify(code, options)
+    return str(jsbeautifier.beautify(code, options))
 
-def build_userscript_header(meta: dict, code_body: str) -> str:
+def build_userscript_header(meta: dict[str, Any], code_body: str) -> str:
     """构建完整可安装脚本：有头部则保留原字段并同步 URL/版本，否则合成新头部。"""
     install_url = get_install_url(meta["id"])
     if "// ==UserScript==" in code_body:
@@ -28,7 +32,7 @@ def build_userscript_header(meta: dict, code_body: str) -> str:
     return _synthesize_header(meta, code_body)
 
 
-def _synthesize_header(meta: dict, code_body: str) -> str:
+def _synthesize_header(meta: dict[str, Any], code_body: str) -> str:
     name = meta.get("name", "Unnamed Script")
     namespace = meta.get("namespace", CONFIG["author"]["namespace"])
     version = meta.get("version", "1.0.0")
@@ -56,7 +60,7 @@ def _synthesize_header(meta: dict, code_body: str) -> str:
     code_body = strip_header(code_body)
     return header + code_body
 
-def extract_meta_from_code(code: str) -> dict:
+def extract_meta_from_code(code: str) -> dict[str, Any]:
     """从源码头部解析标量元数据与 @match/@grant 列表（共享解析器，勿复制）。"""
     meta = {}
     for key in ("name", "version", "description", "author", "namespace"):
@@ -147,36 +151,37 @@ def ensure_dirs() -> None:
 
 def write_dist_file(script_id: str, content: str) -> Path:
     """写入 dist/<id>.user.js 安装文件，返回路径。"""
-    dist_file = CONFIG["dist_dir"] / f"{script_id}.user.js"
+    dist_file = Path(CONFIG["dist_dir"]) / f"{script_id}.user.js"
     dist_file.write_text(content, encoding="utf-8")
     return dist_file
 
-def read_source_file(script: dict) -> str:
+def read_source_file(script: dict[str, Any]) -> str:
     """按脚本类型读取源码文件；不存在时返回空串。"""
     if script["type"] == "self":
-        src_file = CONFIG["self_scripts_dir"] / script["id"] / "index.js"
+        src_file = Path(CONFIG["self_scripts_dir"]) / script["id"] / "index.js"
     else:
-        src_file = CONFIG["synced_scripts_dir"] / script["id"] / "script.user.js"
+        src_file = Path(CONFIG["synced_scripts_dir"]) / script["id"] / "script.user.js"
     return src_file.read_text(encoding="utf-8") if src_file.exists() else ""
 
-def write_source_file(script: dict, content: str) -> Path:
+def write_source_file(script: dict[str, Any], content: str) -> Path:
     """按脚本类型写入源码文件（self 用 index.js，synced 用 script.user.js）。"""
+    sid = str(script["id"])  # 先收窄为 str：Path / Any 会让返回类型退化成 Any
     if script["type"] == "self":
-        src_dir = CONFIG["self_scripts_dir"] / script["id"]
+        src_dir = Path(CONFIG["self_scripts_dir"]) / sid
         src_file = src_dir / "index.js"
     else:
-        src_dir = CONFIG["synced_scripts_dir"] / script["id"]
+        src_dir = Path(CONFIG["synced_scripts_dir"]) / sid
         src_file = src_dir / "script.user.js"
     src_dir.mkdir(parents=True, exist_ok=True)
     src_file.write_text(content, encoding="utf-8")
     return src_file
 
-def remove_source_dir(script: dict) -> None:
+def remove_source_dir(script: dict[str, Any]) -> None:
     """删除脚本源码目录（不存在则忽略）。"""
     if script["type"] == "self":
-        src_dir = CONFIG["self_scripts_dir"] / script["id"]
+        src_dir = Path(CONFIG["self_scripts_dir"]) / script["id"]
     else:
-        src_dir = CONFIG["synced_scripts_dir"] / script["id"]
+        src_dir = Path(CONFIG["synced_scripts_dir"]) / script["id"]
     if src_dir.exists():
         import shutil
         shutil.rmtree(src_dir)
@@ -203,7 +208,7 @@ def now_iso() -> str:
     """UTC ISO-8601 时间戳（Z 后缀）。"""
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-def add_changelog(script: dict, note: str) -> None:
+def add_changelog(script: dict[str, Any], note: str) -> None:
     """为脚本当前版本在 changelog 头部插入一行（原地修改）。"""
     script.setdefault("changelog", []).insert(0, {
         "version": script.get("version", ""),
@@ -219,6 +224,6 @@ def save_documentation(script_id: str, markdown: str) -> str:
     return str(doc_file.relative_to(CONFIG["self_scripts_dir"].parent))
 
 
-def build_dist_for_synced(script_meta: dict, original_code: str) -> str:
+def build_dist_for_synced(script_meta: dict[str, Any], original_code: str) -> str:
     """Only update @downloadURL and @updateURL in the original code for synced scripts."""
     return ensure_userscript_urls(original_code, get_install_url(script_meta["id"]))

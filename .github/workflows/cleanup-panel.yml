@@ -10,6 +10,8 @@ on:
 permissions:
   contents: write
   issues: write
+  # 归档提交后要显式 gh workflow run 派发站点部署（GITHUB_TOKEN 的 push 不触发 workflow）
+  actions: write
 
 concurrency:
   group: cleanup-panel

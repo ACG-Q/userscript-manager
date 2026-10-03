@@ -303,18 +303,25 @@ on:
 ├── .github/workflows/
 │   ├── init-command-panel.yml  # 初始化命令面板
 │   ├── issue-commands.yml      # 命令处理与 Issue 投影
-│   ├── deploy-pages.yml        # 构建站点并部署 Pages
-│   └── test.yml                # 单元测试 CI
+│   ├── deploy-pages.yml        # 构建站点并部署 Pages（含版本帖评论触发）
+│   ├── sync-scheduled.yml      # 定时同步第三方脚本
+│   ├── cleanup-panel.yml       # 定期清理命令面板并归档历史评论
+│   └── test.yml                # 单元测试 / lint / 类型 / GraphQL 校验 CI
 ├── userscript_manager/
 │   ├── config.py               # 配置
 │   ├── registry.py             # 注册表读写（原子写入）
 │   ├── utils.py                # 工具函数（头部构建 / 版本 / 安装地址）
 │   ├── issue_parser.py         # 评论解析（Markdown 支持）
 │   ├── issue_page.py           # Issue 正文生成
+│   ├── discussions.py          # 版本帖（Discussions）读写
+│   ├── issue_stats.py          # 讨论统计拉取
 │   ├── escaping.py             # HTML / Markdown 转义
 │   ├── sources/                # 源适配器
 │   └── commands/               # 命令模块
 ├── tests/                      # 单元与回归测试
+│   └── golden/                 # 行为基线（投影模板逐字符对拍）
+├── tools/
+│   └── validate_graphql.py     # 用官方 schema 校验仓库内全部 GraphQL 查询
 ├── docs/
 │   ├── index.md                # 文档索引
 │   ├── design.md               # 系统设计文档
@@ -322,10 +329,14 @@ on:
 ├── scripts/
 │   ├── self/                   # 自写脚本源码（按 UUID）
 │   └── synced/                 # 同步脚本源码
+├── archive/
+│   └── commands.json           # 命令面板历史评论归档（清理时写入）
 ├── dist/                       # .user.js 安装包（部署时生成，不入库）
 ├── manager.py                  # 命令入口
 ├── project_issues.py           # Issues 投影器（幂等对账）
+├── panel_cleanup.py            # 命令面板定期清理与归档
 ├── build_pages.py              # Pages 站点生成器
+├── pages_assets.py             # 站点 CSS / JS 资产
 ├── registry.json               # 脚本注册表（真源）
 └── requirements.txt
 ```

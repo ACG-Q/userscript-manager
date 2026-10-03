@@ -1,13 +1,21 @@
-from ..registry import save_registry, find_script
-from ..utils import (
-    build_dist_for_synced, write_dist_file, write_source_file,
-    read_source_file, now_iso, add_changelog
-)
-from ..sources import get_adapter
+from typing import Any
+
 from ..commands import register
+from ..registry import find_script, save_registry
+from ..sources import get_adapter
+from ..utils import (
+    add_changelog,
+    build_dist_for_synced,
+    now_iso,
+    read_source_file,
+    write_dist_file,
+    write_source_file,
+)
+
 
 @register("sync")
-def execute(registry, args, code, markdown, has_code_block):
+def execute(registry: dict[str, Any], args: str, code: str,
+            markdown: str, has_code_block: bool) -> str:
     """/sync <id>：立即拉取该同步脚本的最新版本并落盘。"""
     if not args:
         return "❌ 请提供要同步的脚本 ID，例如 /sync <script_id>"
@@ -28,7 +36,8 @@ def execute(registry, args, code, markdown, has_code_block):
     return result
 
 @register("sync-all")
-def execute_sync_all(registry, args, code, markdown, has_code_block):
+def execute_sync_all(registry: dict[str, Any], args: str, code: str,
+                     markdown: str, has_code_block: bool) -> str:
     """/sync-all：批量同步全部启用自动同步的脚本（单个失败不阻断其余）。"""
     synced_scripts = [
         s for s in registry["scripts"]
@@ -49,7 +58,7 @@ def execute_sync_all(registry, args, code, markdown, has_code_block):
     save_registry(registry)
     return "🔄 批量同步完成：\n" + "\n".join(results)
 
-def sync_script(registry, script):
+def sync_script(registry: dict[str, Any], script: dict[str, Any]) -> str:
     """执行单个脚本的同步：拉取→版本校验→写源码/dist→更新记录。"""
     url = script.get("source_url")
     if not url:

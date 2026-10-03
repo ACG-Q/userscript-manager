@@ -100,7 +100,7 @@ flowchart TB
 | 存储层 | Git 仓库 | 持久化全部状态 | — |
 | 分发层 | GitHub Pages | 对外提供安装/更新地址 | 不做鉴权 |
 
-**关键分层原则**：命令核心（评论解析与执行）不直接调用 GitHub API——读评论、回评论、删评论全部由工作流的 bash 步骤用 `gh` 完成，因此业务层可以在本地完整跑通和测试。仓库中仅三处例外主动调 API：`project_issues.py` 的 Issue 投影、Gist 适配器取源码、`build_pages.py` 抓取讨论统计。
+**关键分层原则**：命令核心（评论解析与执行）不直接调用 GitHub API——读评论、回评论、删评论全部由工作流的 bash 步骤用 `gh` 完成，因此业务层可以在本地完整跑通和测试。仓库中只有少数几处例外主动调 API：`project_issues.py` 的 Issue 投影与版本帖发布、`panel_cleanup.py` 的命令面板清理（分页读评论 + 删评论）、Gist 适配器取源码、`build_pages.py` 抓取讨论统计与版本帖评论。所有查询在 CI 中由 `tools/validate_graphql.py` 对照官方 schema 校验。
 
 ## 4. 数据模型
 

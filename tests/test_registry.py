@@ -1,7 +1,7 @@
+import io
 import json
 import os
 import sys
-import io
 import unittest
 
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
@@ -10,7 +10,7 @@ os.environ["GITHUB_REPOSITORY"] = "testuser/testrepo"
 
 from tests._helpers import ConfigIsolation
 from userscript_manager.config import CONFIG
-from userscript_manager.registry import load_registry, save_registry, RegistryError
+from userscript_manager.registry import RegistryError, load_registry, save_registry
 
 
 class TestRegistry(ConfigIsolation):

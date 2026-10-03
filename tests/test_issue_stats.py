@@ -2,7 +2,10 @@ import unittest
 from datetime import datetime, timezone
 
 from userscript_manager.issue_stats import (
-    build_query, clip, fetch_stats, relative_time,
+    build_query,
+    clip,
+    fetch_stats,
+    relative_time,
 )
 
 

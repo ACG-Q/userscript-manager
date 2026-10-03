@@ -1,9 +1,13 @@
-from ..registry import find_script
-from ..config import get_install_url
+from typing import Any
+
 from ..commands import register
+from ..config import get_install_url
+from ..registry import find_script
+
 
 @register("info")
-def execute(registry, args, code, markdown, has_code_block):
+def execute(registry: dict[str, Any], args: str, code: str,
+            markdown: str, has_code_block: bool) -> str:
     """/info <id>：输出脚本完整元数据与状态。"""
     if not args:
         return "❌ 请提供脚本 ID，例如 /info <script_id>"
@@ -34,7 +38,7 @@ def execute(registry, args, code, markdown, has_code_block):
         lines.append(f"  自动同步: {'是' if script.get('sync_enabled', True) else '否'}")
     else:
         if script.get("documentation"):
-            lines.append(f"  文档: 有 (README.md)")
+            lines.append("  文档: 有 (README.md)")
     
     lines.append(f"  安装链接: {install_url}")
     

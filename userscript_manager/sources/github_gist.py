@@ -1,8 +1,10 @@
 import re
+from typing import Any
+
 from .base import BaseSourceAdapter, ScriptSource, http_get
 
 
-def pick_gist_file(files: dict) -> tuple[str, dict]:
+def pick_gist_file(files: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     """从 gist API 的 files 字典挑选最可能的脚本文件：.user.js > .js > 首个。"""
     if not files:
         return "", {}

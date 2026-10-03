@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def relative_time(iso: str, now: datetime | None = None) -> str:
 
 
 def fetch_stats(
-    client, owner: str, name: str, scripts: list[dict]
+    client: Any, owner: str, name: str, scripts: list[dict[str, Any]]
 ) -> dict[str, IssueStats] | None:
     """按脚本 id 返回讨论统计字典。
 
@@ -99,7 +100,7 @@ def fetch_stats(
             targets.append((s["id"], number))
     if not targets:
         return {}
-    variables: dict = {"owner": owner, "name": name}
+    variables: dict[str, Any] = {"owner": owner, "name": name}
     for i, (_sid, number) in enumerate(targets):
         variables[f"n{i}"] = number
     try:

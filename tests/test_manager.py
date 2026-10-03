@@ -6,11 +6,10 @@ import unittest
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-from tests._helpers import ConfigIsolation, FRESH_REGISTRY
-from userscript_manager.config import CONFIG
-from userscript_manager.commands import _commands
-
 import manager
+from tests._helpers import FRESH_REGISTRY, ConfigIsolation
+from userscript_manager.commands import _commands
+from userscript_manager.config import CONFIG
 
 _ENV_KEYS = ("COMMENT_BODY", "COMMENT_USER", "REPO_OWNER", "ISSUE_NUMBER")
 

@@ -6,14 +6,11 @@ import unittest
 if (sys.stdout.encoding or "").lower().replace("-", "") != "utf8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
-from tests._helpers import ConfigIsolation, FRESH_REGISTRY
+from tests._helpers import FRESH_REGISTRY, ConfigIsolation
+from userscript_manager.commands import get_command
 from userscript_manager.config import CONFIG
 from userscript_manager.registry import load_registry
 from userscript_manager.utils import format_js_code
-
-from userscript_manager.commands import get_command
-import userscript_manager.commands.add
-import userscript_manager.commands.update
 
 UGLY = (
     "// ==UserScript==\n// @name 丑陋脚本\n// @version 1.0.0\n"

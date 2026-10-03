@@ -2,6 +2,7 @@ from urllib.parse import urlparse
 
 from .base import BaseSourceAdapter, ScriptSource, http_get
 
+
 class DirectUrlAdapter(BaseSourceAdapter):
     """Handle direct raw script URLs (raw.githubusercontent.com, github.com/.../raw/..., etc.)"""
 

@@ -1,0 +1,15 @@
+# Ruff 门禁配置：显式锁定规则集，避免 ruff 升级改默认规则导致 CI 无故变红。
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "tools/schema.docs.graphql",  # 下载的 schema，非源码
+]
+
+[lint]
+# E4/E7/E9 + F：语法错误、未定义名、未用导入、f-string 硬伤（真正的 bug 面）
+# I：导入排序（机械修复，保证风格一致）
+select = ["E4", "E7", "E9", "F", "I"]
+
+[lint.isort]
+# manager.py / build_pages.py 等依赖 sys.path 注入，保持已知-本地-第三方分组即可
+known-first-party = ["userscript_manager"]

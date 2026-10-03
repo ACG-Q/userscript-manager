@@ -1,0 +1,19 @@
+# 覆盖率配置：只统计仓库自己的代码，门禁在 CI 里以 --fail-under 执行。
+[run]
+source =
+    userscript_manager
+    build_pages
+    pages_assets
+    project_issues
+    panel_cleanup
+    manager
+omit =
+    */__pycache__/*
+    tools/*
+
+[report]
+show_missing = true
+precision = 1
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
